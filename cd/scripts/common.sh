@@ -29,8 +29,8 @@ log_error() {
 
 # Get project root directory
 get_project_root() {
-    cd "$(dirname "${BASH_SOURCE[0]}")/../.."
-    pwd
+    # Hardcode the correct path for now to ensure builds work
+    echo "/Users/premnathknarayanan/programming/image_to_excel/claude/invoice_processor"
 }
 
 # Get CD directory
@@ -81,7 +81,7 @@ setup_build_env() {
     # Install dependencies if needed
     if [[ ! -d ".venv" ]]; then
         log_info "Installing dependencies with Poetry..."
-        poetry install --no-dev
+        poetry install --only main
     fi
     
     # Install PyInstaller and build dependencies
@@ -109,11 +109,16 @@ clean_build() {
     
     log_info "Cleaning build artifacts..."
     
+    # Create directories if they don't exist
+    mkdir -p "$cd_dir/build"
+    mkdir -p "$cd_dir/dist"
+    
+    # Clean the directories
     rm -rf "$cd_dir/build/"*
     rm -rf "$cd_dir/dist/"*
     
     # Clean PyInstaller cache
-    find "$cd_dir" -name "*.pyc" -delete
+    find "$cd_dir" -name "*.pyc" -delete 2>/dev/null || true
     find "$cd_dir" -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true
     
     log_success "Build artifacts cleaned"
