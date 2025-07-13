@@ -390,6 +390,58 @@ The project maintains >95% test coverage across all modules:
 - Implement access controls for sensitive directories
 - Regular security updates for dependencies
 
+## 📦 Distribution & Deployment
+
+### Binary Distributions
+
+Pre-built binaries are available for download from [GitHub Releases](https://github.com/vallabhallm/invoice_to_excel_v1/releases):
+
+- **macOS**: Download the `.dmg` file (macOS 10.14+)
+- **Windows**: Download the `.exe` installer (Windows 10/11, 64-bit)
+
+### Building from Source
+
+#### Prerequisites for Building
+- Python 3.9+
+- Poetry
+- Platform-specific tools:
+  - **macOS**: Xcode Command Line Tools, `create-dmg` (optional)
+  - **Windows**: Visual Studio Build Tools, NSIS (optional)
+
+#### Build Commands
+
+```bash
+# Build for current platform
+cd cd/
+./scripts/build_all.sh
+
+# Platform-specific builds
+./scripts/build_macos.sh    # Creates .dmg
+./scripts/build_windows.sh  # Creates .exe
+
+# Clean build artifacts
+./scripts/build_all.sh --clean
+```
+
+#### Output Files
+- **macOS**: `cd/dist/InvoiceProcessor-v1.0.0-macOS.dmg`
+- **Windows**: `cd/dist/InvoiceProcessor-v1.0.0-setup.exe`
+
+### Automated Builds
+
+GitHub Actions automatically builds distributions on:
+- Push to main branch
+- Tagged releases (creates GitHub Release)
+- Pull requests (for testing)
+
+See `.github/workflows/build.yml` for full CI/CD pipeline details.
+
+### Distribution Documentation
+
+For detailed build instructions, troubleshooting, and customization options, see:
+- [CD Documentation](cd/README.md)
+- [Asset Guidelines](cd/assets/README.md)
+
 ## 📄 License
 
 [Your License Here]

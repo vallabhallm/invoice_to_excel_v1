@@ -54,3 +54,22 @@ Thumbs.db
 
 # MyPy
 .mypy_cache/
+
+# Coverage
+.coverage
+htmlcov/
+coverage.xml
+
+# CD Build artifacts
+cd/build/
+cd/dist/
+*.dmg
+*.exe
+*.msi
+*.deb
+*.rpm
+
+# PyInstaller
+*.spec.bak
+*.manifest
+*.log

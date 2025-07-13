@@ -1,0 +1,189 @@
+name: Build Distributions
+
+on:
+  push:
+    branches: [ main, develop ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.9', '3.10', '3.11']
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Poetry
+      uses: snok/install-poetry@v1
+      with:
+        version: latest
+        virtualenvs-create: true
+        virtualenvs-in-project: true
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+        cache: 'poetry'
+    
+    - name: Install dependencies
+      run: |
+        poetry install --no-interaction
+    
+    - name: Run tests
+      run: |
+        poetry run pytest --cov=src/invoice_processor --cov-report=xml
+    
+    - name: Upload coverage to Codecov
+      if: matrix.python-version == '3.11'
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+
+  build-macos:
+    needs: test
+    runs-on: macos-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Poetry
+      uses: snok/install-poetry@v1
+      with:
+        version: latest
+        virtualenvs-create: true
+        virtualenvs-in-project: true
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        cache: 'poetry'
+    
+    - name: Install system dependencies
+      run: |
+        brew install create-dmg imagemagick
+    
+    - name: Install Python dependencies
+      run: |
+        poetry install --no-interaction
+        poetry add --group=dev pyinstaller
+    
+    - name: Build macOS DMG
+      run: |
+        cd cd
+        chmod +x scripts/*.sh
+        ./scripts/build_macos.sh
+    
+    - name: Upload macOS artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: macos-dmg
+        path: cd/dist/*.dmg
+        retention-days: 30
+
+  build-windows:
+    needs: test
+    runs-on: windows-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Poetry
+      uses: snok/install-poetry@v1
+      with:
+        version: latest
+        virtualenvs-create: true
+        virtualenvs-in-project: true
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        cache: 'poetry'
+    
+    - name: Install Python dependencies
+      run: |
+        poetry install --no-interaction
+        poetry add --group=dev pyinstaller
+    
+    - name: Build Windows EXE
+      shell: bash
+      run: |
+        cd cd
+        chmod +x scripts/*.sh
+        ./scripts/build_windows.sh
+    
+    - name: Upload Windows artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: windows-exe
+        path: cd/dist/*.exe
+        retention-days: 30
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build-macos, build-windows]
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Download macOS artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: macos-dmg
+        path: ./dist/
+    
+    - name: Download Windows artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: windows-exe
+        path: ./dist/
+    
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          ./dist/*.dmg
+          ./dist/*.exe
+        body: |
+          ## Invoice Processor ${{ github.ref_name }}
+          
+          ### 📦 Downloads
+          
+          - **macOS**: Download the `.dmg` file
+          - **Windows**: Download the `.exe` file
+          
+          ### 🚀 Installation
+          
+          #### macOS
+          1. Download the DMG file
+          2. Open the DMG and drag the app to Applications
+          3. Run the app from Applications folder
+          
+          #### Windows
+          1. Download the EXE file
+          2. Run the installer as administrator
+          3. Follow the installation wizard
+          
+          ### 📋 Requirements
+          
+          - **macOS**: macOS 10.14+ (Mojave or later)
+          - **Windows**: Windows 10/11 (64-bit)
+          - **Optional**: OpenAI and/or Anthropic API keys for AI processing
+          
+          ### 🔧 Configuration
+          
+          After installation, configure your API keys through the application settings or by editing the `.env` file.
+          
+          For detailed instructions, see the [README](https://github.com/vallabhallm/invoice_to_excel_v1/blob/main/README.md).
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
