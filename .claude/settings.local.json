@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(chmod:*)",
+      "Bash(./quickstart.sh:*)",
+      "Bash(poetry run:*)",
+      "Bash(poetry install:*)",
+      "Bash(grep:*)"
+    ],
+    "deny": []
+  }
+}
