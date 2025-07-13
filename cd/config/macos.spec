@@ -17,8 +17,8 @@ if str(config_dir) not in sys.path:
 try:
     from app_config import *
 except ImportError:
-    # Fallback if import fails - use hardcoded correct path
-    ROOT_DIR = Path("/Users/premnathknarayanan/programming/image_to_excel/claude/invoice_processor")
+    # Fallback if import fails - use relative path resolution
+    ROOT_DIR = Path(__file__).parent.parent.parent if '__file__' in globals() else Path.cwd().parent.parent
     SRC_DIR = ROOT_DIR / "src"
     APP_NAME = "InvoiceProcessor"
     APP_VERSION = "1.0.0"

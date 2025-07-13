@@ -29,8 +29,20 @@ log_error() {
 
 # Get project root directory
 get_project_root() {
-    # Hardcode the correct path for now to ensure builds work
-    echo "/Users/premnathknarayanan/programming/image_to_excel/claude/invoice_processor"
+    # Use a cross-platform approach that works on both macOS and Windows
+    local current_dir="$(pwd)"
+    
+    # If we're in the cd directory or its subdirectories, go up to find project root
+    if [[ "$current_dir" == */cd* ]]; then
+        # Extract everything before /cd
+        local project_root="${current_dir%%/cd*}"
+        echo "$project_root"
+    else
+        # Fallback: traverse up from script location
+        local script_dir="$(cd "$(dirname "${BASH_SOURCE[1]:-${BASH_SOURCE[0]}}")" && pwd)"
+        local project_root="$(cd "$script_dir/../.." && pwd)"
+        echo "$project_root"
+    fi
 }
 
 # Get CD directory
