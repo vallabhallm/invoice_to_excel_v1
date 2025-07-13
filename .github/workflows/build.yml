@@ -100,21 +100,90 @@ jobs:
 
     - name: Build macOS application
       run: |
-        pyinstaller \
-          --name InvoiceProcessor \
-          --windowed \
-          --onedir \
-          --distpath cd/dist \
-          --workpath cd/build \
-          --specpath cd \
-          --add-data "src:src" \
-          --hidden-import invoice_processor \
-          --hidden-import pydantic \
-          --hidden-import prefect \
-          --hidden-import typer \
-          --hidden-import rich \
-          --icon cd/assets/icons/app.icns \
-          src/invoice_processor/main.py
+        # Create a simple build directory
+        mkdir -p cd/dist
+        
+        # Create a very basic PyInstaller spec file
+        cat > cd/simple_macos.spec << 'EOF'
+        # -*- mode: python ; coding: utf-8 -*-
+        import sys
+        from pathlib import Path
+
+        a = Analysis(
+            ['../src/invoice_processor/main.py'],
+            pathex=[],
+            binaries=[],
+            datas=[],
+            hiddenimports=[
+                'invoice_processor',
+                'invoice_processor.main',
+                'invoice_processor.models',
+                'invoice_processor.extractors',
+                'invoice_processor.utils',
+                'invoice_processor.workflows',
+                'pydantic',
+                'prefect',
+                'typer',
+                'rich',
+                'openai',
+                'anthropic',
+                'pytesseract',
+                'PIL',
+                'cv2',
+                'pandas',
+                'dotenv',
+            ],
+            hookspath=[],
+            hooksconfig={},
+            runtime_hooks=[],
+            excludes=[],
+            win_no_prefer_redirects=False,
+            win_private_assemblies=False,
+            cipher=None,
+            noarchive=False,
+        )
+
+        pyz = PYZ(a.pure, a.zipped_data, cipher=None)
+
+        exe = EXE(
+            pyz,
+            a.scripts,
+            [],
+            exclude_binaries=True,
+            name='InvoiceProcessor',
+            debug=False,
+            bootloader_ignore_signals=False,
+            strip=False,
+            upx=True,
+            console=False,
+            disable_windowed_traceback=False,
+            argv_emulation=False,
+            target_arch=None,
+            codesign_identity=None,
+            entitlements_file=None,
+        )
+
+        coll = COLLECT(
+            exe,
+            a.binaries,
+            a.zipfiles,
+            a.datas,
+            strip=False,
+            upx=True,
+            upx_exclude=[],
+            name='InvoiceProcessor',
+        )
+
+        app = BUNDLE(
+            coll,
+            name='InvoiceProcessor.app',
+            icon=None,
+            bundle_identifier='com.invoiceprocessor.app',
+        )
+        EOF
+        
+        # Build with the spec file
+        cd cd && pyinstaller simple_macos.spec
 
     - name: Create DMG
       run: |
@@ -195,21 +264,76 @@ jobs:
     - name: Build Windows executable
       shell: bash
       run: |
-        pyinstaller \
-          --name InvoiceProcessor \
-          --windowed \
-          --onefile \
-          --distpath cd/dist \
-          --workpath cd/build \
-          --specpath cd \
-          --add-data "src;src" \
-          --hidden-import invoice_processor \
-          --hidden-import pydantic \
-          --hidden-import prefect \
-          --hidden-import typer \
-          --hidden-import rich \
-          --icon cd/assets/icons/app.ico \
-          src/invoice_processor/main.py
+        # Create a simple build directory
+        mkdir -p cd/dist
+        
+        # Create a very basic PyInstaller spec file
+        cat > cd/simple_windows.spec << 'EOF'
+        # -*- mode: python ; coding: utf-8 -*-
+        import sys
+        from pathlib import Path
+
+        a = Analysis(
+            ['../src/invoice_processor/main.py'],
+            pathex=[],
+            binaries=[],
+            datas=[],
+            hiddenimports=[
+                'invoice_processor',
+                'invoice_processor.main',
+                'invoice_processor.models',
+                'invoice_processor.extractors',
+                'invoice_processor.utils',
+                'invoice_processor.workflows',
+                'pydantic',
+                'prefect',
+                'typer',
+                'rich',
+                'openai',
+                'anthropic',
+                'pytesseract',
+                'PIL',
+                'cv2',
+                'pandas',
+                'dotenv',
+            ],
+            hookspath=[],
+            hooksconfig={},
+            runtime_hooks=[],
+            excludes=[],
+            win_no_prefer_redirects=False,
+            win_private_assemblies=False,
+            cipher=None,
+            noarchive=False,
+        )
+
+        pyz = PYZ(a.pure, a.zipped_data, cipher=None)
+
+        exe = EXE(
+            pyz,
+            a.scripts,
+            a.binaries,
+            a.zipfiles,
+            a.datas,
+            [],
+            name='InvoiceProcessor',
+            debug=False,
+            bootloader_ignore_signals=False,
+            strip=False,
+            upx=True,
+            upx_exclude=[],
+            runtime_tmpdir=None,
+            console=False,
+            disable_windowed_traceback=False,
+            argv_emulation=False,
+            target_arch=None,
+            codesign_identity=None,
+            entitlements_file=None,
+        )
+        EOF
+        
+        # Build with the spec file
+        cd cd && pyinstaller simple_windows.spec
     
     - name: Upload Windows artifact
       uses: actions/upload-artifact@v4
