@@ -72,7 +72,6 @@ jobs:
     - name: Install Python dependencies
       run: |
         poetry install --no-interaction
-        poetry add --group=dev pyinstaller
     
     - name: Build macOS DMG
       run: |
@@ -110,7 +109,11 @@ jobs:
     - name: Install Python dependencies
       run: |
         poetry install --no-interaction
-        poetry add --group=dev pyinstaller
+    
+    - name: Install Windows dependencies
+      run: |
+        # Install ImageMagick on Windows
+        choco install imagemagick --yes
     
     - name: Build Windows EXE
       shell: bash
@@ -123,7 +126,7 @@ jobs:
       uses: actions/upload-artifact@v3
       with:
         name: windows-exe
-        path: cd/dist/*.exe
+        path: cd/dist/*windows*.exe
         retention-days: 30
 
   release:
@@ -151,7 +154,7 @@ jobs:
       with:
         files: |
           ./dist/*.dmg
-          ./dist/*.exe
+          ./dist/*windows*.exe
         body: |
           ## Invoice Processor ${{ github.ref_name }}
           
