@@ -6,7 +6,7 @@ from typing import Optional
 import openai
 from anthropic import Anthropic
 
-from ..models.invoice import Invoice, InvoiceHeader, InvoiceLineItem
+from invoice_processor.models.invoice import Invoice, InvoiceHeader, InvoiceLineItem
 
 logger = logging.getLogger(__name__)
 

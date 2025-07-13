@@ -8,7 +8,7 @@ from rich.console import Console
 from rich.logging import RichHandler
 from rich.progress import Progress
 
-from .workflows.invoice_workflow import run_invoice_processing
+from invoice_processor.workflows.invoice_workflow import run_invoice_processing
 
 # Load environment variables
 load_dotenv()

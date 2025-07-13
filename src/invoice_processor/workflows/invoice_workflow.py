@@ -6,12 +6,12 @@ from typing import List, Optional
 import pandas as pd
 from prefect import flow, task
 
-from ..extractors.ai_extractor import AIExtractor
-from ..extractors.image_extractor import ImageExtractor
-from ..extractors.pdf_extractor import PDFExtractor
-from ..models.invoice import FlatInvoiceRecord, Invoice
-from ..utils.file_utils import get_invoice_files, move_processed_file
-from ..utils.summary_generator import InvoiceSummaryGenerator
+from invoice_processor.extractors.ai_extractor import AIExtractor
+from invoice_processor.extractors.image_extractor import ImageExtractor
+from invoice_processor.extractors.pdf_extractor import PDFExtractor
+from invoice_processor.models.invoice import FlatInvoiceRecord, Invoice
+from invoice_processor.utils.file_utils import get_invoice_files, move_processed_file
+from invoice_processor.utils.summary_generator import InvoiceSummaryGenerator
 
 logger = logging.getLogger(__name__)
 

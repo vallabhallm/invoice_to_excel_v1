@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import List, Dict, Any
 import pandas as pd
 
-from ..models.invoice import FlatInvoiceRecord
+from invoice_processor.models.invoice import FlatInvoiceRecord
 
 logger = logging.getLogger(__name__)
 
