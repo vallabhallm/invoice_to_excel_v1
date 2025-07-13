@@ -44,6 +44,31 @@ Download from: https://github.com/UB-Mannheim/tesseract/wiki
 
 ## 🛠️ Installation
 
+### Quick Start (Recommended)
+
+1. **Clone the repository:**
+```bash
+git clone https://github.com/vallabhallm/invoice_to_excel_v1.git
+cd invoice_to_excel_v1
+```
+
+2. **Quick setup:**
+```bash
+./quickstart.sh
+```
+
+3. **Run tests:**
+```bash
+poetry run pytest
+```
+
+4. **Start processing invoices:**
+```bash
+poetry run invoice-processor process
+```
+
+### Manual Installation
+
 1. **Install Poetry (if not already installed):**
 ```bash
 curl -sSL https://install.python-poetry.org | python3 -
