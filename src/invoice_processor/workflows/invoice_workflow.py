@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import List, Optional
 
 import pandas as pd
-from prefect import flow, task
+# Note: Prefect removed for PyInstaller compatibility
 
 from invoice_processor.extractors.ai_extractor import AIExtractor
 from invoice_processor.extractors.image_extractor import ImageExtractor
@@ -16,7 +16,6 @@ from invoice_processor.utils.summary_generator import InvoiceSummaryGenerator
 logger = logging.getLogger(__name__)
 
 
-@task(retries=2, log_prints=True)
 def extract_text_from_file(file_path: Path) -> Optional[str]:
     """Extract text from PDF or image file"""
     file_extension = file_path.suffix.lower()
@@ -52,7 +51,6 @@ def extract_text_from_file(file_path: Path) -> Optional[str]:
         return None
 
 
-@task(retries=1, log_prints=True)
 def extract_invoice_structure(text: str, file_path: str) -> Optional[Invoice]:
     """Extract structured invoice data using AI or create basic structure if AI fails"""
     if not text or len(text.strip()) < 20:
@@ -92,7 +90,6 @@ def extract_invoice_structure(text: str, file_path: str) -> Optional[Invoice]:
     return invoice
 
 
-@task(log_prints=True)
 def flatten_invoice_data(invoice: Invoice) -> List[FlatInvoiceRecord]:
     """Convert invoice to flat records (one per line item)"""
     flat_records = []
@@ -162,7 +159,6 @@ def flatten_invoice_data(invoice: Invoice) -> List[FlatInvoiceRecord]:
     return flat_records
 
 
-@task(log_prints=True)
 def save_results_to_csv(all_records: List[FlatInvoiceRecord], output_file: Path) -> str:
     """Save all flat records to CSV file"""
     if not all_records:
@@ -182,7 +178,6 @@ def save_results_to_csv(all_records: List[FlatInvoiceRecord], output_file: Path)
     return f"Successfully saved {len(all_records)} records to {output_file}"
 
 
-@flow(name="Invoice Processing Workflow", log_prints=True)
 def process_invoices(
     input_dir: str = "data/input",
     output_dir: str = "data/output", 
