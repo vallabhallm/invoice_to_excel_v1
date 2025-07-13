@@ -78,17 +78,60 @@ jobs:
       run: |
         poetry install --no-interaction
     
-    - name: Build macOS DMG
+    - name: Create app icon
       run: |
-        cd cd
-        chmod +x scripts/*.sh
-        ./scripts/build_macos.sh
+        mkdir -p cd/assets/icons
+        # Create a simple PNG icon if ImageMagick is available
+        if command -v magick >/dev/null 2>&1; then
+          magick -size 512x512 xc:'#2E86AB' -fill white -gravity center -font Helvetica-Bold -pointsize 120 -annotate +0-20 'IP' cd/assets/icons/app.png
+          magick cd/assets/icons/app.png cd/assets/icons/app.icns
+        else
+          # Create a simple text file as fallback
+          echo "IP" > cd/assets/icons/app.icns
+        fi
+
+    - name: Build macOS application
+      run: |
+        poetry run pyinstaller \
+          --name InvoiceProcessor \
+          --windowed \
+          --onedir \
+          --distpath cd/dist \
+          --workpath cd/build \
+          --specpath cd \
+          --add-data "src:src" \
+          --hidden-import invoice_processor \
+          --hidden-import pydantic \
+          --hidden-import prefect \
+          --hidden-import typer \
+          --hidden-import rich \
+          --icon cd/assets/icons/app.icns \
+          src/invoice_processor/main.py
+
+    - name: Create DMG
+      run: |
+        if command -v create-dmg >/dev/null 2>&1; then
+          create-dmg \
+            --volname "Invoice Processor" \
+            --window-pos 200 120 \
+            --window-size 800 400 \
+            --icon-size 100 \
+            --app-drop-link 600 185 \
+            cd/dist/InvoiceProcessor-1.0.0-macOS.dmg \
+            cd/dist/InvoiceProcessor.app
+        else
+          echo "create-dmg not available, skipping DMG creation"
+          # Just create a zip as fallback
+          cd cd/dist && zip -r InvoiceProcessor-1.0.0-macOS.zip InvoiceProcessor.app
+        fi
     
     - name: Upload macOS artifact
       uses: actions/upload-artifact@v4
       with:
         name: macos-dmg
-        path: cd/dist/*.dmg
+        path: |
+          cd/dist/*.dmg
+          cd/dist/*.zip
         retention-days: 30
 
   build-windows:
@@ -120,18 +163,43 @@ jobs:
         # Install ImageMagick and Tesseract on Windows
         choco install imagemagick tesseract --yes
     
-    - name: Build Windows EXE
+    - name: Create app icon
       shell: bash
       run: |
-        cd cd
-        chmod +x scripts/*.sh
-        ./scripts/build_windows.sh
+        mkdir -p cd/assets/icons
+        # Create a simple PNG icon if ImageMagick is available
+        if command -v magick >/dev/null 2>&1; then
+          magick -size 512x512 xc:'#2E86AB' -fill white -gravity center -font Helvetica-Bold -pointsize 120 -annotate +0-20 'IP' cd/assets/icons/app.png
+          magick cd/assets/icons/app.png cd/assets/icons/app.ico
+        else
+          # Create a simple text file as fallback
+          echo "IP" > cd/assets/icons/app.ico
+        fi
+
+    - name: Build Windows executable
+      shell: bash
+      run: |
+        poetry run pyinstaller \
+          --name InvoiceProcessor \
+          --windowed \
+          --onefile \
+          --distpath cd/dist \
+          --workpath cd/build \
+          --specpath cd \
+          --add-data "src;src" \
+          --hidden-import invoice_processor \
+          --hidden-import pydantic \
+          --hidden-import prefect \
+          --hidden-import typer \
+          --hidden-import rich \
+          --icon cd/assets/icons/app.ico \
+          src/invoice_processor/main.py
     
     - name: Upload Windows artifact
       uses: actions/upload-artifact@v4
       with:
         name: windows-exe
-        path: cd/dist/*windows*.exe
+        path: cd/dist/*.exe
         retention-days: 30
 
   release:
@@ -159,7 +227,8 @@ jobs:
       with:
         files: |
           ./dist/*.dmg
-          ./dist/*windows*.exe
+          ./dist/*.zip
+          ./dist/*.exe
         body: |
           ## Invoice Processor ${{ github.ref_name }}
           
