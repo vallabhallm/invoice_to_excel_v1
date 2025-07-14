@@ -316,13 +316,40 @@ jobs:
         "if __name__ == '__main__':" | Out-File -FilePath "minimal_main.py" -Append -Encoding utf8
         "    app()" | Out-File -FilePath "minimal_main.py" -Append -Encoding utf8
         
+        # Check if minimal script can run before building
+        Write-Host "Testing if minimal script runs correctly..."
+        python minimal_main.py hello 2>&1 | Tee-Object -FilePath "minimal_test.log"
+        if ($LASTEXITCODE -eq 0) {
+          Write-Host "✅ Minimal script runs successfully"
+        } else {
+          Write-Host "❌ Minimal script failed to run:"
+          Get-Content "minimal_test.log"
+        }
+        
         # Try building the minimal version first
         Write-Host "Building minimal version with PyInstaller..."
         Set-Location "cd"
-        pyinstaller --onefile --console --name=InvoiceProcessor ../minimal_main.py 2>&1 | Tee-Object -FilePath "minimal_build.log"
+        
+        # Check current directory and file structure
+        Write-Host "Current directory: $(Get-Location)"
+        Write-Host "Contents:"
+        Get-ChildItem ../
+        Write-Host "Minimal script exists: $(Test-Path '../minimal_main.py')"
+        
+        # Add verbose logging and error capture
+        Write-Host "Running PyInstaller with verbose output..."
+        pyinstaller --onefile --console --name=InvoiceProcessor --log-level=DEBUG ../minimal_main.py 2>&1 | Tee-Object -FilePath "minimal_build.log"
         
         $MINIMAL_EXIT_CODE = $LASTEXITCODE
         Write-Host "Minimal build exit code: $MINIMAL_EXIT_CODE"
+        
+        # Show the last part of the log if it failed
+        if ($MINIMAL_EXIT_CODE -ne 0) {
+          Write-Host "PyInstaller failed! Last 30 lines of output:"
+          Get-Content "minimal_build.log" | Select-Object -Last 30
+          Write-Host "Checking if any files were created:"
+          Get-ChildItem -Recurse | Where-Object { $_.Name -like "*InvoiceProcessor*" }
+        }
         
         if ($MINIMAL_EXIT_CODE -eq 0) {
           Write-Host "✅ Minimal build succeeded!"
@@ -389,9 +416,14 @@ jobs:
           "Build timestamp: $(Get-Date)" | Out-File -FilePath "README.txt" -Append -Encoding utf8
           "Minimal build exit code: $MINIMAL_EXIT_CODE" | Out-File -FilePath "README.txt" -Append -Encoding utf8
           
-          # Copy log files if they exist
+          # Copy all log files if they exist
           if (Test-Path "../minimal_build.log") {
             Copy-Item "../minimal_build.log" "."
+            "Minimal build log contents:" | Out-File -FilePath "README.txt" -Append -Encoding utf8
+            Get-Content "../minimal_build.log" | Out-File -FilePath "README.txt" -Append -Encoding utf8
+          }
+          if (Test-Path "../minimal_test.log") {
+            Copy-Item "../minimal_test.log" "."
           }
           if (Test-Path "../full_build.log") {
             Copy-Item "../full_build.log" "."
