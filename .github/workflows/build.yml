@@ -267,7 +267,18 @@ jobs:
         # Create a simple build directory
         mkdir -p cd/dist
         
-        # Create a very basic PyInstaller spec file
+        # Create a runtime hook to ensure console output works
+        mkdir -p cd/hooks
+        cat > cd/hooks/hook-rich.py << 'EOF'
+        # PyInstaller hook for Rich console library
+        from PyInstaller.utils.hooks import collect_data_files, collect_submodules
+        
+        # Collect all rich submodules and data
+        hiddenimports = collect_submodules('rich')
+        datas = collect_data_files('rich')
+        EOF
+        
+        # Create a PyInstaller spec file optimized for Windows console applications
         cat > cd/simple_windows.spec << 'EOF'
         # -*- mode: python ; coding: utf-8 -*-
         import sys
@@ -286,18 +297,33 @@ jobs:
                 'invoice_processor.utils',
                 'invoice_processor.workflows',
                 'pydantic',
-                # 'prefect', # Removed for PyInstaller compatibility
+                'pydantic.main',
+                'pydantic.fields',
+                'pydantic.types',
                 'typer',
+                'typer.main',
+                'typer.core',
                 'rich',
+                'rich.console',
+                'rich.text',
+                'rich.logging',
+                'rich.progress',
+                'rich._windows',
+                'rich._windows_renderer',
                 'openai',
                 'anthropic',
                 'pytesseract',
                 'PIL',
+                'PIL.Image',
                 'cv2',
                 'pandas',
+                'python_dotenv',
                 'dotenv',
+                'logging',
+                'sys',
+                'os',
             ],
-            hookspath=[],
+            hookspath=['hooks'],
             hooksconfig={},
             runtime_hooks=[],
             excludes=[],
@@ -317,29 +343,95 @@ jobs:
             a.datas,
             [],
             name='InvoiceProcessor',
-            debug=False,
+            debug=True,
             bootloader_ignore_signals=False,
             strip=False,
-            upx=True,
+            upx=False,
             upx_exclude=[],
             runtime_tmpdir=None,
-            console=False,
+            console=True,
             disable_windowed_traceback=False,
             argv_emulation=False,
             target_arch=None,
             codesign_identity=None,
             entitlements_file=None,
+            uac_admin=False,
+            uac_uiaccess=False,
         )
         EOF
         
-        # Build with the spec file
-        cd cd && pyinstaller simple_windows.spec
+        # Build with the spec file and add debugging
+        cd cd && pyinstaller simple_windows.spec --log-level=DEBUG
+        
+        # Create a comprehensive test script to verify the executable works
+        cat > cd/test_windows_exe.bat << 'EOF'
+        @echo off
+        echo Testing Windows executable...
+        echo.
+        
+        echo Test 1: Running with --help flag:
+        echo ----------------------------------------
+        dist\InvoiceProcessor.exe --help
+        echo.
+        echo Exit code: %ERRORLEVEL%
+        echo.
+        
+        echo Test 2: Running with --version flag:
+        echo ----------------------------------------
+        dist\InvoiceProcessor.exe --version
+        echo.
+        echo Exit code: %ERRORLEVEL%
+        echo.
+        
+        echo Test 3: Running status command:
+        echo ----------------------------------------
+        dist\InvoiceProcessor.exe status
+        echo.
+        echo Exit code: %ERRORLEVEL%
+        echo.
+        
+        echo Test 4: Check if executable exists and is readable:
+        echo ----------------------------------------
+        dir dist\InvoiceProcessor.exe
+        echo.
+        
+        pause
+        EOF
+        
+        # Also create a PowerShell test script
+        cat > cd/test_windows_exe.ps1 << 'EOF'
+        Write-Host "Testing Windows executable with PowerShell..." -ForegroundColor Green
+        Write-Host ""
+        
+        Write-Host "Test 1: Running with --help flag:" -ForegroundColor Yellow
+        Write-Host "----------------------------------------"
+        & ".\dist\InvoiceProcessor.exe" --help
+        Write-Host "Exit code: $LASTEXITCODE"
+        Write-Host ""
+        
+        Write-Host "Test 2: Running with --version flag:" -ForegroundColor Yellow
+        Write-Host "----------------------------------------"
+        & ".\dist\InvoiceProcessor.exe" --version
+        Write-Host "Exit code: $LASTEXITCODE"
+        Write-Host ""
+        
+        Write-Host "Test 3: Running status command:" -ForegroundColor Yellow
+        Write-Host "----------------------------------------"
+        & ".\dist\InvoiceProcessor.exe" status
+        Write-Host "Exit code: $LASTEXITCODE"
+        Write-Host ""
+        
+        Read-Host "Press Enter to continue"
+        EOF
     
     - name: Upload Windows artifact
       uses: actions/upload-artifact@v4
       with:
         name: windows-exe
-        path: cd/dist/*.exe
+        path: |
+          cd/dist/*.exe
+          cd/test_windows_exe.bat
+          cd/test_windows_exe.ps1
         retention-days: 30
 
   release:
