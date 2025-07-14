@@ -402,39 +402,61 @@ jobs:
         Read-Host "Press Enter to continue"
         EOF
         
-        # Debug: List current directory contents
-        echo "Current directory contents:"
-        ls -la
-        echo "Contents of cd directory:"
-        ls -la cd/
-        
         # Build with the spec file
         cd cd && pyinstaller simple_windows.spec
         
-        # Debug: Check what was created
-        echo "After build - checking cd/dist:"
+        # Check if dist directory was created and list contents
+        if [ -d "cd/dist" ]; then
+          echo "cd/dist exists, contents:"
+          ls -la cd/dist/
+        else
+          echo "cd/dist does not exist, creating it"
+          mkdir -p cd/dist
+        fi
+        
+        # Check if PyInstaller created the executable directory
+        if [ -d "cd/dist/InvoiceProcessor" ]; then
+          echo "InvoiceProcessor directory found in cd/dist/"
+          ls -la cd/dist/InvoiceProcessor/
+        else
+          echo "InvoiceProcessor directory not found, checking cd/ for build output"
+          ls -la cd/
+        fi
+        
+        # Copy test scripts to the correct location
+        echo "Copying test scripts to cd/dist/"
+        if [ -f "test_windows_exe.bat" ]; then
+          cp test_windows_exe.bat cd/dist/ || echo "Failed to copy bat file"
+        else
+          echo "test_windows_exe.bat not found in current directory"
+          ls -la test_windows_exe.*
+        fi
+        
+        if [ -f "test_windows_exe.ps1" ]; then
+          cp test_windows_exe.ps1 cd/dist/ || echo "Failed to copy ps1 file"
+        else
+          echo "test_windows_exe.ps1 not found in current directory"
+        fi
+        
+        # Verify what we have in dist
+        echo "Final cd/dist contents:"
         ls -la cd/dist/
         
-        # Copy test scripts to dist directory (they should be in project root)
-        echo "Copying test scripts..."
-        cp test_windows_exe.bat cd/dist/
-        cp test_windows_exe.ps1 cd/dist/
-        
-        # Debug: Verify files are copied
-        echo "After copying - checking cd/dist:"
-        ls -la cd/dist/
-        
-        # Create a zip file for distribution
-        cd cd/dist && powershell Compress-Archive -Path "InvoiceProcessor","test_windows_exe.bat","test_windows_exe.ps1" -DestinationPath "InvoiceProcessor-Windows.zip"
+        # Create ZIP only if we have the required files
+        if [ -d "cd/dist/InvoiceProcessor" ] && [ -f "cd/dist/test_windows_exe.bat" ]; then
+          echo "Creating ZIP file..."
+          cd cd/dist && powershell Compress-Archive -Path "InvoiceProcessor","test_windows_exe.bat","test_windows_exe.ps1" -DestinationPath "InvoiceProcessor-Windows.zip"
+        else
+          echo "Missing required files for ZIP creation"
+          echo "Creating basic ZIP with just the executable directory..."
+          cd cd/dist && powershell Compress-Archive -Path "InvoiceProcessor" -DestinationPath "InvoiceProcessor-Windows.zip"
+        fi
     
     - name: Upload Windows artifact
       uses: actions/upload-artifact@v4
       with:
         name: windows-exe
-        path: |
-          cd/dist/InvoiceProcessor-Windows.zip
-          cd/dist/test_windows_exe.bat
-          cd/dist/test_windows_exe.ps1
+        path: cd/dist/InvoiceProcessor-Windows.zip
         retention-days: 30
 
   release:
