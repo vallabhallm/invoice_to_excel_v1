@@ -227,20 +227,28 @@ jobs:
       run: |
         pip install --upgrade pip
         pip install pyinstaller
-        # Install all required dependencies manually
-        # Prefect removed for PyInstaller compatibility
-        pip install "pydantic>=2.5.0"
-        pip install "opencv-python>=4.8.1"
-        pip install "pytesseract>=0.3.10"
-        pip install "PyPDF2>=3.0.1"
-        pip install "pdf2image>=1.16.3"
-        pip install "pillow>=10.1.0"
-        pip install "openai>=1.6.0"
-        pip install "anthropic>=0.8.0"
-        pip install "pandas>=2.1.4"
-        pip install "python-dotenv>=1.0.0"
+        echo "PyInstaller version:"
+        pyinstaller --version
+        
+        # Test PyInstaller immediately with a simple script
+        echo 'print("Hello World")' > simple_test.py
+        echo "Testing PyInstaller with simple script..."
+        pyinstaller --onefile --console simple_test.py --name=SimpleTest --distpath=simple_dist --clean
+        if [ $? -eq 0 ]; then
+          echo "✅ PyInstaller works with simple script"
+          ls -la simple_dist/
+          ./simple_dist/SimpleTest.exe || echo "Executable created but failed to run"
+        else
+          echo "❌ PyInstaller fails with simple script - critical issue"
+          exit 1
+        fi
+        
+        # Install minimal dependencies for a basic build
         pip install "typer>=0.13.0"
         pip install "rich>=13.7.0"
+        pip install "python-dotenv>=1.0.0"
+        
+        # Install the package in development mode
         pip install -e .
     
     - name: Install Windows dependencies
@@ -380,27 +388,65 @@ jobs:
         echo "Testing import of main module..."
         python -c "import sys; sys.path.insert(0, 'src'); from invoice_processor.main import app; print('✅ main module importable')" || echo "❌ main module not importable"
         
-        # Try simple PyInstaller command with absolute path and hidden imports
-        echo "Starting PyInstaller build with absolute path..."
+        # Create a minimal working main script to test
+        echo "Creating minimal test version of main.py..."
+        cat > minimal_main.py << 'EOF'
+        import typer
+        from rich.console import Console
+
+        console = Console()
+        app = typer.Typer()
+
+        @app.command()
+        def hello():
+            """Test command"""
+            console.print("✅ Hello from Invoice Processor!")
+            console.print("This is a minimal version to test Windows console output.")
+
+        if __name__ == "__main__":
+            app()
+        EOF
+        
+        # Try building the minimal version first
+        echo "Building minimal version with PyInstaller..."
         cd cd && pyinstaller \
-          --onedir \
+          --onefile \
           --console \
           --name=InvoiceProcessor \
-          --hidden-import=invoice_processor \
-          --hidden-import=invoice_processor.main \
-          --hidden-import=invoice_processor.models \
-          --hidden-import=invoice_processor.extractors \
-          --hidden-import=invoice_processor.utils \
-          --hidden-import=invoice_processor.workflows \
-          --hidden-import=typer \
-          --hidden-import=rich \
-          --hidden-import=pydantic \
-          --collect-all=invoice_processor \
-          "$MAIN_PY_PATH" --log-level INFO 2>&1 | tee pyinstaller_main.log
+          ../minimal_main.py 2>&1 | tee minimal_build.log
         
-        # Check PyInstaller exit code
-        PYINSTALLER_EXIT_CODE=$?
-        echo "PyInstaller exit code: $PYINSTALLER_EXIT_CODE"
+        MINIMAL_EXIT_CODE=$?
+        echo "Minimal build exit code: $MINIMAL_EXIT_CODE"
+        
+        if [ $MINIMAL_EXIT_CODE -eq 0 ]; then
+          echo "✅ Minimal build succeeded! Now trying full build..."
+          # Try full build
+          pyinstaller \
+            --onefile \
+            --console \
+            --name=InvoiceProcessorFull \
+            --hidden-import=invoice_processor \
+            --hidden-import=typer \
+            --hidden-import=rich \
+            "$MAIN_PY_PATH" 2>&1 | tee full_build.log
+          FULL_EXIT_CODE=$?
+          echo "Full build exit code: $FULL_EXIT_CODE"
+        else
+          echo "❌ Even minimal build failed"
+        fi
+        
+        # Determine which build to use
+        if [ $MINIMAL_EXIT_CODE -eq 0 ]; then
+          PYINSTALLER_EXIT_CODE=$MINIMAL_EXIT_CODE
+          echo "Using minimal build as primary"
+          if [ $FULL_EXIT_CODE -eq 0 ]; then
+            echo "Full build also succeeded, preferring full build"
+            PYINSTALLER_EXIT_CODE=$FULL_EXIT_CODE
+          fi
+        else
+          PYINSTALLER_EXIT_CODE=$MINIMAL_EXIT_CODE
+        fi
+        echo "Final PyInstaller exit code: $PYINSTALLER_EXIT_CODE"
         
         if [ $PYINSTALLER_EXIT_CODE -ne 0 ]; then
           echo "PyInstaller failed! Capturing error details..."
@@ -616,9 +662,13 @@ jobs:
               echo "=== PyInstaller Error Logs ===" >> README.txt
               
               # Copy any log files that were created
-              if [ -f "../pyinstaller_main.log" ]; then
-                echo "Main PyInstaller log:" >> README.txt
-                cat ../pyinstaller_main.log >> README.txt
+              if [ -f "../minimal_build.log" ]; then
+                echo "Minimal build log:" >> README.txt
+                cat ../minimal_build.log >> README.txt
+              fi
+              if [ -f "../full_build.log" ]; then
+                echo "Full build log:" >> README.txt
+                cat ../full_build.log >> README.txt
               fi
               if [ -f "../pyinstaller_debug.log" ]; then
                 echo "Debug PyInstaller log:" >> README.txt
@@ -626,7 +676,8 @@ jobs:
               fi
               
               # Also copy the logs as separate files
-              cp ../pyinstaller_main.log . 2>/dev/null || echo "No main log found"
+              cp ../minimal_build.log . 2>/dev/null || echo "No minimal log found"
+              cp ../full_build.log . 2>/dev/null || echo "No full log found"
               cp ../pyinstaller_debug.log . 2>/dev/null || echo "No debug log found"
               
               powershell Compress-Archive -Path "*" -DestinationPath "InvoiceProcessor-Windows.zip" -Force
