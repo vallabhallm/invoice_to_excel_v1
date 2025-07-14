@@ -98,28 +98,97 @@ ANTHROPIC_API_KEY=your_anthropic_api_key_here
 
 ## 🎯 Usage
 
-### Basic Usage
+### Pre-built Binaries (Recommended)
+
+Download the latest release from [GitHub Releases](https://github.com/vallabhallm/invoice_to_excel_v1/releases):
+
+#### **macOS Installation**
+
+1. **Download**: Download the `.dmg` file from the latest release
+2. **Install**: 
+   - Double-click the DMG file to mount it
+   - Drag the "InvoiceProcessor" app to your Applications folder
+   - Eject the DMG
+3. **Run**: 
+   - Open Terminal
+   - Navigate to your Applications folder: `cd /Applications`
+   - Run the application: `./InvoiceProcessor.app/Contents/MacOS/InvoiceProcessor --help`
+   - Or create an alias for easier access:
+     ```bash
+     echo 'alias invoiceprocessor="/Applications/InvoiceProcessor.app/Contents/MacOS/InvoiceProcessor"' >> ~/.zshrc
+     source ~/.zshrc
+     ```
+
+#### **Windows Installation**
+
+1. **Download**: Download the `.exe` file from the latest release
+2. **Install**: 
+   - Run the downloaded EXE file as Administrator
+   - Follow the installation wizard
+   - The application will be installed to `C:\Program Files\InvoiceProcessor\`
+3. **Run**:
+   - Open Command Prompt or PowerShell
+   - Navigate to the installation directory: `cd "C:\Program Files\InvoiceProcessor"`
+   - Run the application: `.\InvoiceProcessor.exe --help`
+   - Or add to PATH for global access:
+     ```cmd
+     # Add to your system PATH via System Properties > Environment Variables
+     # Then you can run from anywhere:
+     invoiceprocessor --help
+     ```
+
+#### **Quick Start with Binaries**
+
+1. **Setup**: Run the setup command to create default directories
+   ```bash
+   # macOS
+   invoiceprocessor --setup
+   
+   # Windows
+   InvoiceProcessor.exe --setup
+   ```
+
+2. **Configure**: Edit the `.env` file created in your current directory:
+   ```env
+   OPENAI_API_KEY=your_openai_api_key_here
+   ANTHROPIC_API_KEY=your_anthropic_api_key_here
+   ```
+
+3. **Process**: Place invoices in `data/input/` and run:
+   ```bash
+   # macOS
+   invoiceprocessor process
+   
+   # Windows
+   InvoiceProcessor.exe process
+   ```
+
+### Development Installation
+
+For developers or users who want to run from source:
+
+#### **Basic Usage**
 
 1. **Place invoice files** in the `data/input/` directory (supports nested folders)
 2. **Run the processor:**
 ```bash
-invoice-processor process
+poetry run invoice-processor process
 ```
 
-### Advanced Usage
+#### **Advanced Usage**
 
 ```bash
 # Process with custom directories
-invoice-processor process --input /path/to/invoices --output /path/to/results
+poetry run invoice-processor process --input /path/to/invoices --output /path/to/results
 
 # Check system status
-invoice-processor status
+poetry run invoice-processor status
 
 # Get help
-invoice-processor --help
+poetry run invoice-processor --help
 ```
 
-### Programmatic Usage
+#### **Programmatic Usage**
 
 ```python
 from invoice_processor import run_invoice_processing
@@ -131,6 +200,41 @@ result = run_invoice_processing(
     processed_dir="data/processed"
 )
 print(result)
+```
+
+### Cross-Platform Commands
+
+All commands work the same way across platforms, just use the appropriate executable:
+
+| Platform | Command Format | Example |
+|----------|----------------|---------|
+| **macOS (Binary)** | `invoiceprocessor [command]` | `invoiceprocessor --help` |
+| **Windows (Binary)** | `InvoiceProcessor.exe [command]` | `InvoiceProcessor.exe --help` |
+| **Development** | `poetry run invoice-processor [command]` | `poetry run invoice-processor --help` |
+
+#### **Common Commands**
+
+```bash
+# Setup initial directory structure and config
+--setup
+
+# Process all invoices in data/input/
+process
+
+# Process with custom input directory  
+process --input /path/to/invoices
+
+# Process with custom output directory
+process --output /path/to/results
+
+# Check system status and configuration
+status
+
+# Show version information
+--version
+
+# Display help
+--help
 ```
 
 ## 📊 Output Format
@@ -398,6 +502,20 @@ Pre-built binaries are available for download from [GitHub Releases](https://git
 
 - **macOS**: Download the `.dmg` file (macOS 10.14+)
 - **Windows**: Download the `.exe` installer (Windows 10/11, 64-bit)
+
+#### **Installation Instructions**
+
+**macOS:**
+1. Download the DMG file from the latest release
+2. Open the DMG and drag InvoiceProcessor.app to Applications
+3. Run from Terminal: `/Applications/InvoiceProcessor.app/Contents/MacOS/InvoiceProcessor --help`
+
+**Windows:**
+1. Download the EXE file from the latest release  
+2. Run as Administrator and follow the installation wizard
+3. Run from Command Prompt: `"C:\Program Files\InvoiceProcessor\InvoiceProcessor.exe" --help`
+
+See the [Usage section](#-usage) for detailed setup and usage instructions.
 
 ### Building from Source
 
