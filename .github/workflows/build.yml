@@ -483,13 +483,50 @@ jobs:
           Set-Location "../.."
         }
     
-    - name: Check for Windows artifact
+    - name: Check for Windows artifact and verify contents
       shell: powershell
       run: |
         Write-Host "Checking for artifact before upload:"
         if (Test-Path "cd/dist/InvoiceProcessor-Windows.zip") {
           Write-Host "✅ ZIP file found for upload"
-          Get-ChildItem "cd/dist/InvoiceProcessor-Windows.zip"
+          $ZipInfo = Get-ChildItem "cd/dist/InvoiceProcessor-Windows.zip"
+          Write-Host "ZIP file size: $($ZipInfo.Length) bytes"
+          
+          # Extract and verify contents
+          Write-Host "Extracting ZIP to verify contents..."
+          $TempDir = "cd/dist/temp_verify"
+          New-Item -ItemType Directory -Force -Path $TempDir
+          Expand-Archive -Path "cd/dist/InvoiceProcessor-Windows.zip" -DestinationPath $TempDir -Force
+          
+          Write-Host "Contents of ZIP file:"
+          Get-ChildItem $TempDir -Recurse | ForEach-Object {
+            $Size = if ($_.PSIsContainer) { "[DIR]" } else { "$($_.Length) bytes" }
+            Write-Host "  $($_.Name) - $Size"
+          }
+          
+          # Specifically check for the executable
+          if (Test-Path "$TempDir/InvoiceProcessor.exe") {
+            $ExeInfo = Get-ChildItem "$TempDir/InvoiceProcessor.exe"
+            Write-Host "✅ InvoiceProcessor.exe found - Size: $($ExeInfo.Length) bytes"
+            
+            # Test if the executable runs
+            Write-Host "Testing extracted executable..."
+            try {
+              $TestOutput = & "$TempDir/InvoiceProcessor.exe" --help 2>&1
+              Write-Host "✅ Executable runs successfully!"
+              Write-Host "Help output preview:"
+              $TestOutput | Select-Object -First 5 | ForEach-Object { Write-Host "  $_" }
+            } catch {
+              Write-Host "⚠️ Executable exists but failed to run: $_"
+            }
+          } else {
+            Write-Host "❌ InvoiceProcessor.exe NOT found in ZIP!"
+            Write-Host "This explains why the download appears empty."
+          }
+          
+          # Clean up temp directory
+          Remove-Item $TempDir -Recurse -Force
+          
           Write-Host "ZIP file is ready for upload"
         } else {
           Write-Host "❌ ZIP file not found, creating emergency ZIP"
