@@ -402,12 +402,27 @@ jobs:
         Read-Host "Press Enter to continue"
         EOF
         
+        # Debug: List current directory contents
+        echo "Current directory contents:"
+        ls -la
+        echo "Contents of cd directory:"
+        ls -la cd/
+        
         # Build with the spec file
         cd cd && pyinstaller simple_windows.spec
         
-        # Move test scripts to dist directory
-        mv test_windows_exe.bat cd/dist/
-        mv test_windows_exe.ps1 cd/dist/
+        # Debug: Check what was created
+        echo "After build - checking cd/dist:"
+        ls -la cd/dist/
+        
+        # Copy test scripts to dist directory (they should be in project root)
+        echo "Copying test scripts..."
+        cp test_windows_exe.bat cd/dist/
+        cp test_windows_exe.ps1 cd/dist/
+        
+        # Debug: Verify files are copied
+        echo "After copying - checking cd/dist:"
+        ls -la cd/dist/
         
         # Create a zip file for distribution
         cd cd/dist && powershell Compress-Archive -Path "InvoiceProcessor","test_windows_exe.bat","test_windows_exe.ps1" -DestinationPath "InvoiceProcessor-Windows.zip"
