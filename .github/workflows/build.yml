@@ -337,17 +337,38 @@ jobs:
         
         # Add verbose logging and error capture
         Write-Host "Running PyInstaller with verbose output..."
-        pyinstaller --onefile --console --name=InvoiceProcessor --log-level=DEBUG ../minimal_main.py 2>&1 | Tee-Object -FilePath "minimal_build.log"
         
+        # First try to capture all output to a file and also display it
+        $PyInstallerOutput = & pyinstaller --onefile --console --name=InvoiceProcessor --log-level=DEBUG ../minimal_main.py 2>&1
         $MINIMAL_EXIT_CODE = $LASTEXITCODE
+        
+        # Write output to both console and file
+        $PyInstallerOutput | Out-File -FilePath "minimal_build.log" -Encoding utf8
+        Write-Host "PyInstaller output:"
+        $PyInstallerOutput | ForEach-Object { Write-Host $_ }
+        
         Write-Host "Minimal build exit code: $MINIMAL_EXIT_CODE"
         
-        # Show the last part of the log if it failed
+        # Show comprehensive error information if it failed
         if ($MINIMAL_EXIT_CODE -ne 0) {
-          Write-Host "PyInstaller failed! Last 30 lines of output:"
-          Get-Content "minimal_build.log" | Select-Object -Last 30
+          Write-Host "❌ PyInstaller failed! Full error analysis:"
+          Write-Host "Exit code: $MINIMAL_EXIT_CODE"
+          Write-Host ""
+          Write-Host "Last 50 lines of detailed output:"
+          $PyInstallerOutput | Select-Object -Last 50 | ForEach-Object { Write-Host "  $_" }
+          Write-Host ""
           Write-Host "Checking if any files were created:"
-          Get-ChildItem -Recurse | Where-Object { $_.Name -like "*InvoiceProcessor*" }
+          if (Test-Path "dist") {
+            Get-ChildItem "dist" -Recurse
+          } else {
+            Write-Host "No dist directory created"
+          }
+          Write-Host ""
+          Write-Host "Checking for spec files:"
+          Get-ChildItem -Filter "*.spec"
+          Write-Host ""
+          Write-Host "Working directory contents:"
+          Get-ChildItem -Name
         }
         
         if ($MINIMAL_EXIT_CODE -eq 0) {
