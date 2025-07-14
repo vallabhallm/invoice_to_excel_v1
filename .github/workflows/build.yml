@@ -356,9 +356,29 @@ jobs:
         echo "Checking if invoice_processor package is importable:"
         python -c "import sys; sys.path.insert(0, 'src'); import invoice_processor; print('✅ Package importable')" || echo "❌ Package not importable"
         
-        # Install the package in development mode first
+        # Test if PyInstaller works at all with a simple script
+        echo "Testing PyInstaller with simple script..."
+        echo 'print("Hello from PyInstaller test")' > test_script.py
+        cd cd && pyinstaller --onefile --console ../test_script.py --name=Test --distpath=test_dist
+        TEST_EXIT_CODE=$?
+        echo "Test PyInstaller exit code: $TEST_EXIT_CODE"
+        if [ $TEST_EXIT_CODE -eq 0 ]; then
+          echo "PyInstaller works with simple script"
+          ls -la test_dist/
+        else
+          echo "PyInstaller fails even with simple script - environment issue"
+        fi
+        cd ..
+        
+        # Install the package in development mode
         echo "Installing package in development mode..."
         pip install -e .
+        
+        # Test if our main.py can run at all
+        echo "Testing if main.py can run..."
+        python "$MAIN_PY_PATH" --help || echo "❌ main.py failed to run"
+        echo "Testing import of main module..."
+        python -c "import sys; sys.path.insert(0, 'src'); from invoice_processor.main import app; print('✅ main module importable')" || echo "❌ main module not importable"
         
         # Try simple PyInstaller command with absolute path and hidden imports
         echo "Starting PyInstaller build with absolute path..."
@@ -376,18 +396,31 @@ jobs:
           --hidden-import=rich \
           --hidden-import=pydantic \
           --collect-all=invoice_processor \
-          "$MAIN_PY_PATH" --log-level INFO
+          "$MAIN_PY_PATH" --log-level INFO 2>&1 | tee pyinstaller_main.log
         
         # Check PyInstaller exit code
         PYINSTALLER_EXIT_CODE=$?
         echo "PyInstaller exit code: $PYINSTALLER_EXIT_CODE"
         
         if [ $PYINSTALLER_EXIT_CODE -ne 0 ]; then
-          echo "PyInstaller failed! Trying with spec file..."
-          # Fallback to spec file
-          pyinstaller simple_windows.spec --log-level INFO
+          echo "PyInstaller failed! Capturing error details..."
+          echo "Last 50 lines of any log files:"
+          find . -name "*.log" -exec tail -50 {} \; 2>/dev/null || echo "No log files found"
+          
+          echo "Trying minimal PyInstaller command..."
+          # Try absolute minimal approach
+          pyinstaller --onefile --console "$MAIN_PY_PATH" --name=InvoiceProcessor --distpath=dist --workpath=build --specpath=.
           PYINSTALLER_EXIT_CODE=$?
-          echo "Spec file PyInstaller exit code: $PYINSTALLER_EXIT_CODE"
+          echo "Minimal PyInstaller exit code: $PYINSTALLER_EXIT_CODE"
+          
+          if [ $PYINSTALLER_EXIT_CODE -ne 0 ]; then
+            echo "Minimal PyInstaller also failed! Trying spec file..."
+            pyinstaller simple_windows.spec --log-level DEBUG 2>&1 | tee pyinstaller_debug.log
+            PYINSTALLER_EXIT_CODE=$?
+            echo "Spec file PyInstaller exit code: $PYINSTALLER_EXIT_CODE"
+            echo "Last 100 lines of debug log:"
+            tail -100 pyinstaller_debug.log || echo "No debug log created"
+          fi
         else
           echo "PyInstaller completed successfully with simple command"
         fi
@@ -570,7 +603,7 @@ jobs:
               echo "Created fallback ZIP with found executable"
               cd ../..
             else
-              echo "No executable found anywhere, creating minimal ZIP with debug info"
+              echo "No executable found anywhere, creating comprehensive debug ZIP"
               mkdir -p cd/dist
               cd cd/dist
               echo "No executable could be built. Please check the build logs." > README.txt
@@ -579,8 +612,25 @@ jobs:
               echo "Python version: $(python --version)" >> README.txt
               echo "Working directory contents:" >> README.txt
               ls -la ../../ >> README.txt
-              powershell Compress-Archive -Path "README.txt" -DestinationPath "InvoiceProcessor-Windows.zip" -Force
-              echo "Created minimal ZIP with debug information"
+              echo "" >> README.txt
+              echo "=== PyInstaller Error Logs ===" >> README.txt
+              
+              # Copy any log files that were created
+              if [ -f "../pyinstaller_main.log" ]; then
+                echo "Main PyInstaller log:" >> README.txt
+                cat ../pyinstaller_main.log >> README.txt
+              fi
+              if [ -f "../pyinstaller_debug.log" ]; then
+                echo "Debug PyInstaller log:" >> README.txt
+                tail -200 ../pyinstaller_debug.log >> README.txt
+              fi
+              
+              # Also copy the logs as separate files
+              cp ../pyinstaller_main.log . 2>/dev/null || echo "No main log found"
+              cp ../pyinstaller_debug.log . 2>/dev/null || echo "No debug log found"
+              
+              powershell Compress-Archive -Path "*" -DestinationPath "InvoiceProcessor-Windows.zip" -Force
+              echo "Created comprehensive debug ZIP with logs"
               cd ../..
             fi
           fi
