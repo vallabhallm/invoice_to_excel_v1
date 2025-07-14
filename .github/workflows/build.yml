@@ -338,14 +338,32 @@ jobs:
         # Add verbose logging and error capture
         Write-Host "Running PyInstaller with verbose output..."
         
-        # First try to capture all output to a file and also display it
-        $PyInstallerOutput = & pyinstaller --onefile --console --name=InvoiceProcessor --log-level=DEBUG ../minimal_main.py 2>&1
-        $MINIMAL_EXIT_CODE = $LASTEXITCODE
+        # Use Start-Process to properly capture output and exit code
+        $ProcessInfo = New-Object System.Diagnostics.ProcessStartInfo
+        $ProcessInfo.FileName = "pyinstaller"
+        $ProcessInfo.Arguments = "--onefile --console --name=InvoiceProcessor --log-level=DEBUG ../minimal_main.py"
+        $ProcessInfo.RedirectStandardOutput = $true
+        $ProcessInfo.RedirectStandardError = $true
+        $ProcessInfo.UseShellExecute = $false
+        $ProcessInfo.CreateNoWindow = $true
         
-        # Write output to both console and file
-        $PyInstallerOutput | Out-File -FilePath "minimal_build.log" -Encoding utf8
+        $Process = New-Object System.Diagnostics.Process
+        $Process.StartInfo = $ProcessInfo
+        $Process.Start() | Out-Null
+        $Process.WaitForExit()
+        
+        $PyInstallerStdOut = $Process.StandardOutput.ReadToEnd()
+        $PyInstallerStdErr = $Process.StandardError.ReadToEnd()
+        $MINIMAL_EXIT_CODE = $Process.ExitCode
+        
+        # Combine output and save to file
+        $AllOutput = @()
+        if ($PyInstallerStdOut) { $AllOutput += $PyInstallerStdOut -split "`n" }
+        if ($PyInstallerStdErr) { $AllOutput += $PyInstallerStdErr -split "`n" }
+        $AllOutput | Out-File -FilePath "minimal_build.log" -Encoding utf8
+        
         Write-Host "PyInstaller output:"
-        $PyInstallerOutput | ForEach-Object { Write-Host $_ }
+        $AllOutput | ForEach-Object { Write-Host $_ }
         
         Write-Host "Minimal build exit code: $MINIMAL_EXIT_CODE"
         
@@ -354,8 +372,19 @@ jobs:
           Write-Host "❌ PyInstaller failed! Full error analysis:"
           Write-Host "Exit code: $MINIMAL_EXIT_CODE"
           Write-Host ""
-          Write-Host "Last 50 lines of detailed output:"
-          $PyInstallerOutput | Select-Object -Last 50 | ForEach-Object { Write-Host "  $_" }
+          Write-Host "Standard Output:"
+          if ($PyInstallerStdOut) {
+            $PyInstallerStdOut -split "`n" | ForEach-Object { Write-Host "  $_" }
+          } else {
+            Write-Host "  (No standard output)"
+          }
+          Write-Host ""
+          Write-Host "Standard Error:"
+          if ($PyInstallerStdErr) {
+            $PyInstallerStdErr -split "`n" | ForEach-Object { Write-Host "  $_" }
+          } else {
+            Write-Host "  (No standard error)"
+          }
           Write-Host ""
           Write-Host "Checking if any files were created:"
           if (Test-Path "dist") {
