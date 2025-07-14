@@ -301,24 +301,23 @@ jobs:
         # Create a minimal working main script to test
         Write-Host "Creating minimal test version of main.py..."
         
-        # Create the minimal script using echo commands
+        # Create the minimal script using echo commands - simpler approach
         "import typer" | Out-File -FilePath "minimal_main.py" -Encoding utf8
         "from rich.console import Console" | Out-File -FilePath "minimal_main.py" -Append -Encoding utf8
         "" | Out-File -FilePath "minimal_main.py" -Append -Encoding utf8
         "console = Console()" | Out-File -FilePath "minimal_main.py" -Append -Encoding utf8
-        "app = typer.Typer()" | Out-File -FilePath "minimal_main.py" -Append -Encoding utf8
         "" | Out-File -FilePath "minimal_main.py" -Append -Encoding utf8
-        "@app.command()" | Out-File -FilePath "minimal_main.py" -Append -Encoding utf8
-        "def hello():" | Out-File -FilePath "minimal_main.py" -Append -Encoding utf8
-        "    console.print('Hello from Invoice Processor!')" | Out-File -FilePath "minimal_main.py" -Append -Encoding utf8
-        "    console.print('Windows console output is working!')" | Out-File -FilePath "minimal_main.py" -Append -Encoding utf8
+        "def main():" | Out-File -FilePath "minimal_main.py" -Append -Encoding utf8
+        "    console.print('✅ Hello from Invoice Processor!')" | Out-File -FilePath "minimal_main.py" -Append -Encoding utf8
+        "    console.print('🪟 Windows console output is working!')" | Out-File -FilePath "minimal_main.py" -Append -Encoding utf8
+        "    console.print('This confirms the console application is functioning properly.')" | Out-File -FilePath "minimal_main.py" -Append -Encoding utf8
         "" | Out-File -FilePath "minimal_main.py" -Append -Encoding utf8
         "if __name__ == '__main__':" | Out-File -FilePath "minimal_main.py" -Append -Encoding utf8
-        "    app()" | Out-File -FilePath "minimal_main.py" -Append -Encoding utf8
+        "    typer.run(main)" | Out-File -FilePath "minimal_main.py" -Append -Encoding utf8
         
         # Check if minimal script can run before building
         Write-Host "Testing if minimal script runs correctly..."
-        python minimal_main.py hello 2>&1 | Tee-Object -FilePath "minimal_test.log"
+        python minimal_main.py 2>&1 | Tee-Object -FilePath "minimal_test.log"
         if ($LASTEXITCODE -eq 0) {
           Write-Host "✅ Minimal script runs successfully"
         } else {
@@ -357,7 +356,7 @@ jobs:
           
           # Test the minimal executable
           Write-Host "Testing minimal executable..."
-          & ".\dist\InvoiceProcessor.exe" hello
+          & ".\dist\InvoiceProcessor.exe"
           
           Write-Host "Now trying full build with all features..."
           # Try full build (but don't fail if it doesn't work)
@@ -388,18 +387,18 @@ jobs:
           "@echo off" | Out-File -FilePath "test_windows_exe.bat" -Encoding ascii
           "echo Testing Windows executable..." | Out-File -FilePath "test_windows_exe.bat" -Append -Encoding ascii
           "echo." | Out-File -FilePath "test_windows_exe.bat" -Append -Encoding ascii
-          "echo Running hello command:" | Out-File -FilePath "test_windows_exe.bat" -Append -Encoding ascii
+          "echo Running executable:" | Out-File -FilePath "test_windows_exe.bat" -Append -Encoding ascii
           "echo ----------------------------------------" | Out-File -FilePath "test_windows_exe.bat" -Append -Encoding ascii
-          "InvoiceProcessor.exe hello" | Out-File -FilePath "test_windows_exe.bat" -Append -Encoding ascii
+          "InvoiceProcessor.exe" | Out-File -FilePath "test_windows_exe.bat" -Append -Encoding ascii
           "echo." | Out-File -FilePath "test_windows_exe.bat" -Append -Encoding ascii
           "echo Exit code: %ERRORLEVEL%" | Out-File -FilePath "test_windows_exe.bat" -Append -Encoding ascii
           "pause" | Out-File -FilePath "test_windows_exe.bat" -Append -Encoding ascii
           
           "Write-Host 'Testing Windows executable with PowerShell...' -ForegroundColor Green" | Out-File -FilePath "test_windows_exe.ps1" -Encoding utf8
           "Write-Host ''" | Out-File -FilePath "test_windows_exe.ps1" -Append -Encoding utf8
-          "Write-Host 'Running hello command:' -ForegroundColor Yellow" | Out-File -FilePath "test_windows_exe.ps1" -Append -Encoding utf8
+          "Write-Host 'Running executable:' -ForegroundColor Yellow" | Out-File -FilePath "test_windows_exe.ps1" -Append -Encoding utf8
           "Write-Host '----------------------------------------'" | Out-File -FilePath "test_windows_exe.ps1" -Append -Encoding utf8
-          "& '.\InvoiceProcessor.exe' hello" | Out-File -FilePath "test_windows_exe.ps1" -Append -Encoding utf8
+          "& '.\InvoiceProcessor.exe'" | Out-File -FilePath "test_windows_exe.ps1" -Append -Encoding utf8
           "Write-Host 'Exit code:' `$LASTEXITCODE" | Out-File -FilePath "test_windows_exe.ps1" -Append -Encoding utf8
           "Read-Host 'Press Enter to continue'" | Out-File -FilePath "test_windows_exe.ps1" -Append -Encoding utf8
           
