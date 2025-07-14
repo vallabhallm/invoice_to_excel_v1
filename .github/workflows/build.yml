@@ -301,7 +301,24 @@ jobs:
         # Create a minimal working main script to test
         Write-Host "Creating minimal test version of main.py..."
         
-        # Create the minimal script using echo commands - simpler approach
+        # Create an ultra-minimal script first (no dependencies)
+        "print('Hello from minimal Python script!')" | Out-File -FilePath "ultra_minimal.py" -Encoding utf8
+        "print('This is a basic test without any external dependencies')" | Out-File -FilePath "ultra_minimal.py" -Append -Encoding utf8
+        "input('Press Enter to exit...')" | Out-File -FilePath "ultra_minimal.py" -Append -Encoding utf8
+        
+        # Test ultra minimal script with PyInstaller first
+        Write-Host "Testing ultra minimal script with PyInstaller..."
+        pyinstaller --onefile --console --name=UltraMinimal ultra_minimal.py --clean --noconfirm
+        if ($LASTEXITCODE -eq 0) {
+          Write-Host "✅ Ultra minimal script builds successfully!"
+          if (Test-Path "dist/UltraMinimal.exe") {
+            Write-Host "✅ Ultra minimal executable created"
+          }
+        } else {
+          Write-Host "❌ Even ultra minimal script fails - PyInstaller issue"
+        }
+        
+        # Now create the typer-based minimal script
         "import typer" | Out-File -FilePath "minimal_main.py" -Encoding utf8
         "from rich.console import Console" | Out-File -FilePath "minimal_main.py" -Append -Encoding utf8
         "" | Out-File -FilePath "minimal_main.py" -Append -Encoding utf8
@@ -337,11 +354,22 @@ jobs:
         
         # Add verbose logging and error capture
         Write-Host "Running PyInstaller with verbose output..."
+        Write-Host "PyInstaller version and info:"
+        pyinstaller --version
+        
+        # Check Python environment
+        Write-Host "Python environment info:"
+        python -c "import sys; print(f'Python: {sys.version}'); print(f'Path: {sys.executable}')"
+        
+        # Try to import the modules we need
+        Write-Host "Testing module imports:"
+        python -c "import typer; print('✅ typer imported successfully')" 2>&1
+        python -c "import rich; print('✅ rich imported successfully')" 2>&1
         
         # Use Start-Process to properly capture output and exit code
         $ProcessInfo = New-Object System.Diagnostics.ProcessStartInfo
         $ProcessInfo.FileName = "pyinstaller"
-        $ProcessInfo.Arguments = "--onefile --console --name=InvoiceProcessor --log-level=DEBUG ../minimal_main.py"
+        $ProcessInfo.Arguments = "--onefile --console --name=InvoiceProcessor --log-level=DEBUG --clean --noconfirm ../minimal_main.py"
         $ProcessInfo.RedirectStandardOutput = $true
         $ProcessInfo.RedirectStandardError = $true
         $ProcessInfo.UseShellExecute = $false
