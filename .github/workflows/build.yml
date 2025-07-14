@@ -342,72 +342,75 @@ jobs:
         )
         EOF
         
-        # Build with the spec file
-        cd cd && pyinstaller simple_windows.spec
-        
-        # Create a zip file for distribution
-        cd cd/dist && powershell Compress-Archive -Path "InvoiceProcessor" -DestinationPath "InvoiceProcessor-Windows.zip"
-        
-        # Create a comprehensive test script to verify the executable works
-        cat > cd/test_windows_exe.bat << 'EOF'
+        # Create test scripts first
+        cat > test_windows_exe.bat << 'EOF'
         @echo off
         echo Testing Windows executable...
         echo.
         
         echo Test 1: Running with --help flag:
         echo ----------------------------------------
-        dist\InvoiceProcessor\InvoiceProcessor.exe --help
+        InvoiceProcessor\InvoiceProcessor.exe --help
         echo.
         echo Exit code: %ERRORLEVEL%
         echo.
         
         echo Test 2: Running with --version flag:
         echo ----------------------------------------
-        dist\InvoiceProcessor\InvoiceProcessor.exe --version
+        InvoiceProcessor\InvoiceProcessor.exe --version
         echo.
         echo Exit code: %ERRORLEVEL%
         echo.
         
         echo Test 3: Running status command:
         echo ----------------------------------------
-        dist\InvoiceProcessor\InvoiceProcessor.exe status
+        InvoiceProcessor\InvoiceProcessor.exe status
         echo.
         echo Exit code: %ERRORLEVEL%
         echo.
         
         echo Test 4: Check if executable exists and is readable:
         echo ----------------------------------------
-        dir dist\InvoiceProcessor\
+        dir InvoiceProcessor\
         echo.
         
         pause
         EOF
         
-        # Also create a PowerShell test script
-        cat > cd/test_windows_exe.ps1 << 'EOF'
+        cat > test_windows_exe.ps1 << 'EOF'
         Write-Host "Testing Windows executable with PowerShell..." -ForegroundColor Green
         Write-Host ""
         
         Write-Host "Test 1: Running with --help flag:" -ForegroundColor Yellow
         Write-Host "----------------------------------------"
-        & ".\dist\InvoiceProcessor\InvoiceProcessor.exe" --help
+        & ".\InvoiceProcessor\InvoiceProcessor.exe" --help
         Write-Host "Exit code: $LASTEXITCODE"
         Write-Host ""
         
         Write-Host "Test 2: Running with --version flag:" -ForegroundColor Yellow
         Write-Host "----------------------------------------"
-        & ".\dist\InvoiceProcessor\InvoiceProcessor.exe" --version
+        & ".\InvoiceProcessor\InvoiceProcessor.exe" --version
         Write-Host "Exit code: $LASTEXITCODE"
         Write-Host ""
         
         Write-Host "Test 3: Running status command:" -ForegroundColor Yellow
         Write-Host "----------------------------------------"
-        & ".\dist\InvoiceProcessor\InvoiceProcessor.exe" status
+        & ".\InvoiceProcessor\InvoiceProcessor.exe" status
         Write-Host "Exit code: $LASTEXITCODE"
         Write-Host ""
         
         Read-Host "Press Enter to continue"
         EOF
+        
+        # Build with the spec file
+        cd cd && pyinstaller simple_windows.spec
+        
+        # Move test scripts to dist directory
+        mv test_windows_exe.bat cd/dist/
+        mv test_windows_exe.ps1 cd/dist/
+        
+        # Create a zip file for distribution
+        cd cd/dist && powershell Compress-Archive -Path "InvoiceProcessor","test_windows_exe.bat","test_windows_exe.ps1" -DestinationPath "InvoiceProcessor-Windows.zip"
     
     - name: Upload Windows artifact
       uses: actions/upload-artifact@v4
@@ -415,8 +418,8 @@ jobs:
         name: windows-exe
         path: |
           cd/dist/InvoiceProcessor-Windows.zip
-          cd/test_windows_exe.bat
-          cd/test_windows_exe.ps1
+          cd/dist/test_windows_exe.bat
+          cd/dist/test_windows_exe.ps1
         retention-days: 30
 
   release:
