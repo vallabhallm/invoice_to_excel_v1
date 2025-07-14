@@ -342,8 +342,30 @@ jobs:
         )
         EOF
         
-        # Create test scripts first
-        cat > test_windows_exe.bat << 'EOF'
+        # Build with the spec file first
+        cd cd && pyinstaller simple_windows.spec
+        
+        # Check if dist directory was created and list contents
+        if [ -d "cd/dist" ]; then
+          echo "cd/dist exists, contents:"
+          ls -la cd/dist/
+        else
+          echo "cd/dist does not exist, creating it"
+          mkdir -p cd/dist
+        fi
+        
+        # Check if PyInstaller created the executable directory
+        if [ -d "cd/dist/InvoiceProcessor" ]; then
+          echo "InvoiceProcessor directory found in cd/dist/"
+          ls -la cd/dist/InvoiceProcessor/
+        else
+          echo "InvoiceProcessor directory not found, checking cd/ for build output"
+          ls -la cd/
+        fi
+        
+        # Create test scripts directly in the dist directory
+        echo "Creating test scripts in cd/dist/"
+        cat > cd/dist/test_windows_exe.bat << 'EOF'
         @echo off
         echo Testing Windows executable...
         echo.
@@ -377,7 +399,7 @@ jobs:
         pause
         EOF
         
-        cat > test_windows_exe.ps1 << 'EOF'
+        cat > cd/dist/test_windows_exe.ps1 << 'EOF'
         Write-Host "Testing Windows executable with PowerShell..." -ForegroundColor Green
         Write-Host ""
         
@@ -402,55 +424,13 @@ jobs:
         Read-Host "Press Enter to continue"
         EOF
         
-        # Build with the spec file
-        cd cd && pyinstaller simple_windows.spec
-        
-        # Check if dist directory was created and list contents
-        if [ -d "cd/dist" ]; then
-          echo "cd/dist exists, contents:"
-          ls -la cd/dist/
-        else
-          echo "cd/dist does not exist, creating it"
-          mkdir -p cd/dist
-        fi
-        
-        # Check if PyInstaller created the executable directory
-        if [ -d "cd/dist/InvoiceProcessor" ]; then
-          echo "InvoiceProcessor directory found in cd/dist/"
-          ls -la cd/dist/InvoiceProcessor/
-        else
-          echo "InvoiceProcessor directory not found, checking cd/ for build output"
-          ls -la cd/
-        fi
-        
-        # Copy test scripts to the correct location
-        echo "Copying test scripts to cd/dist/"
-        if [ -f "test_windows_exe.bat" ]; then
-          cp test_windows_exe.bat cd/dist/ || echo "Failed to copy bat file"
-        else
-          echo "test_windows_exe.bat not found in current directory"
-          ls -la test_windows_exe.*
-        fi
-        
-        if [ -f "test_windows_exe.ps1" ]; then
-          cp test_windows_exe.ps1 cd/dist/ || echo "Failed to copy ps1 file"
-        else
-          echo "test_windows_exe.ps1 not found in current directory"
-        fi
-        
         # Verify what we have in dist
         echo "Final cd/dist contents:"
         ls -la cd/dist/
         
-        # Create ZIP only if we have the required files
-        if [ -d "cd/dist/InvoiceProcessor" ] && [ -f "cd/dist/test_windows_exe.bat" ]; then
-          echo "Creating ZIP file..."
-          cd cd/dist && powershell Compress-Archive -Path "InvoiceProcessor","test_windows_exe.bat","test_windows_exe.ps1" -DestinationPath "InvoiceProcessor-Windows.zip"
-        else
-          echo "Missing required files for ZIP creation"
-          echo "Creating basic ZIP with just the executable directory..."
-          cd cd/dist && powershell Compress-Archive -Path "InvoiceProcessor" -DestinationPath "InvoiceProcessor-Windows.zip"
-        fi
+        # Create ZIP with all files
+        echo "Creating ZIP file..."
+        cd cd/dist && powershell Compress-Archive -Path "InvoiceProcessor","test_windows_exe.bat","test_windows_exe.ps1" -DestinationPath "InvoiceProcessor-Windows.zip"
     
     - name: Upload Windows artifact
       uses: actions/upload-artifact@v4
