@@ -429,9 +429,13 @@ jobs:
         
         # Create test scripts and ZIP
         Write-Host "Creating test scripts and ZIP file..."
-        if (Test-Path "cd/dist/InvoiceProcessor.exe") {
+        Write-Host "Current working directory: $(Get-Location)"
+        Write-Host "Checking for executable at: dist/InvoiceProcessor.exe"
+        if (Test-Path "dist/InvoiceProcessor.exe") {
           Write-Host "✅ Found InvoiceProcessor.exe, creating ZIP with test scripts"
-          Set-Location "cd/dist"
+          $ExeInfo = Get-ChildItem "dist/InvoiceProcessor.exe"
+          Write-Host "Executable size: $($ExeInfo.Length) bytes"
+          Set-Location "dist"
           
           # Create test scripts using line-by-line approach
           "@echo off" | Out-File -FilePath "test_windows_exe.bat" -Encoding ascii
@@ -458,24 +462,33 @@ jobs:
           Set-Location "../.."
         } else {
           Write-Host "❌ No executable found, creating debug ZIP"
-          New-Item -ItemType Directory -Force -Path "cd/dist"
-          Set-Location "cd/dist"
+          Write-Host "Checking what files exist in dist directory:"
+          if (Test-Path "dist") {
+            Get-ChildItem "dist" -Recurse | ForEach-Object { Write-Host "  Found: $($_.FullName)" }
+          } else {
+            Write-Host "  No dist directory exists!"
+          }
+          Write-Host "Checking current directory contents:"
+          Get-ChildItem | ForEach-Object { Write-Host "  $($_.Name)" }
+          
+          New-Item -ItemType Directory -Force -Path "dist"
+          Set-Location "dist"
           
           "No executable could be built. Build details:" | Out-File -FilePath "README.txt" -Encoding utf8
           "Build timestamp: $(Get-Date)" | Out-File -FilePath "README.txt" -Append -Encoding utf8
           "Minimal build exit code: $MINIMAL_EXIT_CODE" | Out-File -FilePath "README.txt" -Append -Encoding utf8
           
           # Copy all log files if they exist
-          if (Test-Path "../minimal_build.log") {
-            Copy-Item "../minimal_build.log" "."
+          if (Test-Path "minimal_build.log") {
+            Copy-Item "minimal_build.log" "."
             "Minimal build log contents:" | Out-File -FilePath "README.txt" -Append -Encoding utf8
-            Get-Content "../minimal_build.log" | Out-File -FilePath "README.txt" -Append -Encoding utf8
+            Get-Content "minimal_build.log" | Out-File -FilePath "README.txt" -Append -Encoding utf8
           }
-          if (Test-Path "../minimal_test.log") {
-            Copy-Item "../minimal_test.log" "."
+          if (Test-Path "minimal_test.log") {
+            Copy-Item "minimal_test.log" "."
           }
-          if (Test-Path "../full_build.log") {
-            Copy-Item "../full_build.log" "."
+          if (Test-Path "full_build.log") {
+            Copy-Item "full_build.log" "."
           }
           
           Compress-Archive -Path "*" -DestinationPath "InvoiceProcessor-Windows.zip" -Force
@@ -487,6 +500,8 @@ jobs:
       shell: powershell
       run: |
         Write-Host "Checking for artifact before upload:"
+        Write-Host "Current directory: $(Get-Location)"
+        Write-Host "Looking for: cd/dist/InvoiceProcessor-Windows.zip"
         if (Test-Path "cd/dist/InvoiceProcessor-Windows.zip") {
           Write-Host "✅ ZIP file found for upload"
           $ZipInfo = Get-ChildItem "cd/dist/InvoiceProcessor-Windows.zip"
