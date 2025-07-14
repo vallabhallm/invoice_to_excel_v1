@@ -300,24 +300,21 @@ jobs:
         
         # Create a minimal working main script to test
         Write-Host "Creating minimal test version of main.py..."
-        $minimalScript = @"
-import typer
-from rich.console import Console
-
-console = Console()
-app = typer.Typer()
-
-@app.command()
-def hello():
-    '''Test command for Windows console output'''
-    console.print('✅ Hello from Invoice Processor!')
-    console.print('🪟 Windows console output is working!')
-    console.print('This confirms the console application is functioning properly.')
-
-if __name__ == '__main__':
-    app()
-"@
-        $minimalScript | Out-File -FilePath "minimal_main.py" -Encoding utf8
+        
+        # Create the minimal script using echo commands
+        "import typer" | Out-File -FilePath "minimal_main.py" -Encoding utf8
+        "from rich.console import Console" | Out-File -FilePath "minimal_main.py" -Append -Encoding utf8
+        "" | Out-File -FilePath "minimal_main.py" -Append -Encoding utf8
+        "console = Console()" | Out-File -FilePath "minimal_main.py" -Append -Encoding utf8
+        "app = typer.Typer()" | Out-File -FilePath "minimal_main.py" -Append -Encoding utf8
+        "" | Out-File -FilePath "minimal_main.py" -Append -Encoding utf8
+        "@app.command()" | Out-File -FilePath "minimal_main.py" -Append -Encoding utf8
+        "def hello():" | Out-File -FilePath "minimal_main.py" -Append -Encoding utf8
+        "    console.print('Hello from Invoice Processor!')" | Out-File -FilePath "minimal_main.py" -Append -Encoding utf8
+        "    console.print('Windows console output is working!')" | Out-File -FilePath "minimal_main.py" -Append -Encoding utf8
+        "" | Out-File -FilePath "minimal_main.py" -Append -Encoding utf8
+        "if __name__ == '__main__':" | Out-File -FilePath "minimal_main.py" -Append -Encoding utf8
+        "    app()" | Out-File -FilePath "minimal_main.py" -Append -Encoding utf8
         
         # Try building the minimal version first
         Write-Host "Building minimal version with PyInstaller..."
@@ -360,30 +357,24 @@ if __name__ == '__main__':
           Write-Host "✅ Found InvoiceProcessor.exe, creating ZIP with test scripts"
           Set-Location "cd/dist"
           
-          # Create test scripts
-          $batScript = @"
-@echo off
-echo Testing Windows executable...
-echo.
-echo Running hello command:
-echo ----------------------------------------
-InvoiceProcessor.exe hello
-echo.
-echo Exit code: %ERRORLEVEL%
-pause
-"@
-          $batScript | Out-File -FilePath "test_windows_exe.bat" -Encoding ascii
+          # Create test scripts using line-by-line approach
+          "@echo off" | Out-File -FilePath "test_windows_exe.bat" -Encoding ascii
+          "echo Testing Windows executable..." | Out-File -FilePath "test_windows_exe.bat" -Append -Encoding ascii
+          "echo." | Out-File -FilePath "test_windows_exe.bat" -Append -Encoding ascii
+          "echo Running hello command:" | Out-File -FilePath "test_windows_exe.bat" -Append -Encoding ascii
+          "echo ----------------------------------------" | Out-File -FilePath "test_windows_exe.bat" -Append -Encoding ascii
+          "InvoiceProcessor.exe hello" | Out-File -FilePath "test_windows_exe.bat" -Append -Encoding ascii
+          "echo." | Out-File -FilePath "test_windows_exe.bat" -Append -Encoding ascii
+          "echo Exit code: %ERRORLEVEL%" | Out-File -FilePath "test_windows_exe.bat" -Append -Encoding ascii
+          "pause" | Out-File -FilePath "test_windows_exe.bat" -Append -Encoding ascii
           
-          $ps1Script = @"
-Write-Host 'Testing Windows executable with PowerShell...' -ForegroundColor Green
-Write-Host ''
-Write-Host 'Running hello command:' -ForegroundColor Yellow
-Write-Host '----------------------------------------'
-& '.\InvoiceProcessor.exe' hello
-Write-Host 'Exit code: `$LASTEXITCODE'
-Read-Host 'Press Enter to continue'
-"@
-          $ps1Script | Out-File -FilePath "test_windows_exe.ps1" -Encoding utf8
+          "Write-Host 'Testing Windows executable with PowerShell...' -ForegroundColor Green" | Out-File -FilePath "test_windows_exe.ps1" -Encoding utf8
+          "Write-Host ''" | Out-File -FilePath "test_windows_exe.ps1" -Append -Encoding utf8
+          "Write-Host 'Running hello command:' -ForegroundColor Yellow" | Out-File -FilePath "test_windows_exe.ps1" -Append -Encoding utf8
+          "Write-Host '----------------------------------------'" | Out-File -FilePath "test_windows_exe.ps1" -Append -Encoding utf8
+          "& '.\InvoiceProcessor.exe' hello" | Out-File -FilePath "test_windows_exe.ps1" -Append -Encoding utf8
+          "Write-Host 'Exit code:' `$LASTEXITCODE" | Out-File -FilePath "test_windows_exe.ps1" -Append -Encoding utf8
+          "Read-Host 'Press Enter to continue'" | Out-File -FilePath "test_windows_exe.ps1" -Append -Encoding utf8
           
           # Create ZIP
           Compress-Archive -Path "InvoiceProcessor.exe","test_windows_exe.bat","test_windows_exe.ps1" -DestinationPath "InvoiceProcessor-Windows.zip" -Force
