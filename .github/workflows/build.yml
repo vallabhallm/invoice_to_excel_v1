@@ -267,17 +267,6 @@ jobs:
         # Create a simple build directory
         mkdir -p cd/dist
         
-        # Create a runtime hook to ensure console output works
-        mkdir -p cd/hooks
-        cat > cd/hooks/hook-rich.py << 'EOF'
-        # PyInstaller hook for Rich console library
-        from PyInstaller.utils.hooks import collect_data_files, collect_submodules
-        
-        # Collect all rich submodules and data
-        hiddenimports = collect_submodules('rich')
-        datas = collect_data_files('rich')
-        EOF
-        
         # Create a PyInstaller spec file optimized for Windows console applications
         cat > cd/simple_windows.spec << 'EOF'
         # -*- mode: python ; coding: utf-8 -*-
@@ -297,33 +286,21 @@ jobs:
                 'invoice_processor.utils',
                 'invoice_processor.workflows',
                 'pydantic',
-                'pydantic.main',
-                'pydantic.fields',
-                'pydantic.types',
                 'typer',
-                'typer.main',
-                'typer.core',
                 'rich',
                 'rich.console',
                 'rich.text',
                 'rich.logging',
                 'rich.progress',
-                'rich._windows',
-                'rich._windows_renderer',
                 'openai',
                 'anthropic',
                 'pytesseract',
                 'PIL',
-                'PIL.Image',
                 'cv2',
                 'pandas',
-                'python_dotenv',
                 'dotenv',
-                'logging',
-                'sys',
-                'os',
             ],
-            hookspath=['hooks'],
+            hookspath=[],
             hooksconfig={},
             runtime_hooks=[],
             excludes=[],
@@ -338,30 +315,38 @@ jobs:
         exe = EXE(
             pyz,
             a.scripts,
-            a.binaries,
-            a.zipfiles,
-            a.datas,
             [],
+            exclude_binaries=True,
             name='InvoiceProcessor',
-            debug=True,
+            debug=False,
             bootloader_ignore_signals=False,
             strip=False,
-            upx=False,
-            upx_exclude=[],
-            runtime_tmpdir=None,
+            upx=True,
             console=True,
             disable_windowed_traceback=False,
             argv_emulation=False,
             target_arch=None,
             codesign_identity=None,
             entitlements_file=None,
-            uac_admin=False,
-            uac_uiaccess=False,
+        )
+
+        coll = COLLECT(
+            exe,
+            a.binaries,
+            a.zipfiles,
+            a.datas,
+            strip=False,
+            upx=True,
+            upx_exclude=[],
+            name='InvoiceProcessor',
         )
         EOF
         
-        # Build with the spec file and add debugging
-        cd cd && pyinstaller simple_windows.spec --log-level=DEBUG
+        # Build with the spec file
+        cd cd && pyinstaller simple_windows.spec
+        
+        # Create a zip file for distribution
+        cd cd/dist && powershell Compress-Archive -Path "InvoiceProcessor" -DestinationPath "InvoiceProcessor-Windows.zip"
         
         # Create a comprehensive test script to verify the executable works
         cat > cd/test_windows_exe.bat << 'EOF'
@@ -371,28 +356,28 @@ jobs:
         
         echo Test 1: Running with --help flag:
         echo ----------------------------------------
-        dist\InvoiceProcessor.exe --help
+        dist\InvoiceProcessor\InvoiceProcessor.exe --help
         echo.
         echo Exit code: %ERRORLEVEL%
         echo.
         
         echo Test 2: Running with --version flag:
         echo ----------------------------------------
-        dist\InvoiceProcessor.exe --version
+        dist\InvoiceProcessor\InvoiceProcessor.exe --version
         echo.
         echo Exit code: %ERRORLEVEL%
         echo.
         
         echo Test 3: Running status command:
         echo ----------------------------------------
-        dist\InvoiceProcessor.exe status
+        dist\InvoiceProcessor\InvoiceProcessor.exe status
         echo.
         echo Exit code: %ERRORLEVEL%
         echo.
         
         echo Test 4: Check if executable exists and is readable:
         echo ----------------------------------------
-        dir dist\InvoiceProcessor.exe
+        dir dist\InvoiceProcessor\
         echo.
         
         pause
@@ -405,19 +390,19 @@ jobs:
         
         Write-Host "Test 1: Running with --help flag:" -ForegroundColor Yellow
         Write-Host "----------------------------------------"
-        & ".\dist\InvoiceProcessor.exe" --help
+        & ".\dist\InvoiceProcessor\InvoiceProcessor.exe" --help
         Write-Host "Exit code: $LASTEXITCODE"
         Write-Host ""
         
         Write-Host "Test 2: Running with --version flag:" -ForegroundColor Yellow
         Write-Host "----------------------------------------"
-        & ".\dist\InvoiceProcessor.exe" --version
+        & ".\dist\InvoiceProcessor\InvoiceProcessor.exe" --version
         Write-Host "Exit code: $LASTEXITCODE"
         Write-Host ""
         
         Write-Host "Test 3: Running status command:" -ForegroundColor Yellow
         Write-Host "----------------------------------------"
-        & ".\dist\InvoiceProcessor.exe" status
+        & ".\dist\InvoiceProcessor\InvoiceProcessor.exe" status
         Write-Host "Exit code: $LASTEXITCODE"
         Write-Host ""
         
@@ -429,7 +414,7 @@ jobs:
       with:
         name: windows-exe
         path: |
-          cd/dist/*.exe
+          cd/dist/InvoiceProcessor-Windows.zip
           cd/test_windows_exe.bat
           cd/test_windows_exe.ps1
         retention-days: 30
@@ -460,7 +445,6 @@ jobs:
         files: |
           ./dist/*.dmg
           ./dist/*.zip
-          ./dist/*.exe
         body: |
           ## Invoice Processor ${{ github.ref_name }}
           
