@@ -300,7 +300,7 @@ jobs:
         
         # Create a minimal working main script to test
         Write-Host "Creating minimal test version of main.py..."
-        @'
+        $minimalScript = @"
 import typer
 from rich.console import Console
 
@@ -309,14 +309,15 @@ app = typer.Typer()
 
 @app.command()
 def hello():
-    """Test command for Windows console output"""
-    console.print("✅ Hello from Invoice Processor!")
-    console.print("🪟 Windows console output is working!")
-    console.print("This confirms the console application is functioning properly.")
+    '''Test command for Windows console output'''
+    console.print('✅ Hello from Invoice Processor!')
+    console.print('🪟 Windows console output is working!')
+    console.print('This confirms the console application is functioning properly.')
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     app()
-'@ | Out-File -FilePath "minimal_main.py" -Encoding utf8
+"@
+        $minimalScript | Out-File -FilePath "minimal_main.py" -Encoding utf8
         
         # Try building the minimal version first
         Write-Host "Building minimal version with PyInstaller..."
@@ -360,7 +361,7 @@ if __name__ == "__main__":
           Set-Location "cd/dist"
           
           # Create test scripts
-          @'
+          $batScript = @"
 @echo off
 echo Testing Windows executable...
 echo.
@@ -370,17 +371,19 @@ InvoiceProcessor.exe hello
 echo.
 echo Exit code: %ERRORLEVEL%
 pause
-'@ | Out-File -FilePath "test_windows_exe.bat" -Encoding ascii
+"@
+          $batScript | Out-File -FilePath "test_windows_exe.bat" -Encoding ascii
           
-          @'
-Write-Host "Testing Windows executable with PowerShell..." -ForegroundColor Green
-Write-Host ""
-Write-Host "Running hello command:" -ForegroundColor Yellow
-Write-Host "----------------------------------------"
-& ".\InvoiceProcessor.exe" hello
-Write-Host "Exit code: $LASTEXITCODE"
-Read-Host "Press Enter to continue"
-'@ | Out-File -FilePath "test_windows_exe.ps1" -Encoding utf8
+          $ps1Script = @"
+Write-Host 'Testing Windows executable with PowerShell...' -ForegroundColor Green
+Write-Host ''
+Write-Host 'Running hello command:' -ForegroundColor Yellow
+Write-Host '----------------------------------------'
+& '.\InvoiceProcessor.exe' hello
+Write-Host 'Exit code: `$LASTEXITCODE'
+Read-Host 'Press Enter to continue'
+"@
+          $ps1Script | Out-File -FilePath "test_windows_exe.ps1" -Encoding utf8
           
           # Create ZIP
           Compress-Archive -Path "InvoiceProcessor.exe","test_windows_exe.bat","test_windows_exe.ps1" -DestinationPath "InvoiceProcessor-Windows.zip" -Force
