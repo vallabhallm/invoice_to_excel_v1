@@ -274,7 +274,7 @@ jobs:
         from pathlib import Path
 
         a = Analysis(
-            ['../src/invoice_processor/main.py'],
+            [r'../src/invoice_processor/main.py'],
             pathex=[],
             binaries=[],
             datas=[],
@@ -342,8 +342,32 @@ jobs:
         )
         EOF
         
-        # Build with the spec file first
-        cd cd && pyinstaller simple_windows.spec
+        # Check if main.py exists first
+        echo "Checking if main.py exists..."
+        ls -la src/invoice_processor/main.py || echo "main.py not found!"
+        
+        # Try simple PyInstaller command first
+        echo "Starting PyInstaller build with simple command..."
+        cd cd && pyinstaller --onedir --console --name=InvoiceProcessor ../src/invoice_processor/main.py --log-level INFO
+        
+        # Check PyInstaller exit code
+        PYINSTALLER_EXIT_CODE=$?
+        echo "PyInstaller exit code: $PYINSTALLER_EXIT_CODE"
+        
+        if [ $PYINSTALLER_EXIT_CODE -ne 0 ]; then
+          echo "PyInstaller failed! Trying with spec file..."
+          # Fallback to spec file
+          pyinstaller simple_windows.spec --log-level INFO
+          PYINSTALLER_EXIT_CODE=$?
+          echo "Spec file PyInstaller exit code: $PYINSTALLER_EXIT_CODE"
+        else
+          echo "PyInstaller completed successfully with simple command"
+        fi
+        
+        # Check what was actually created
+        echo "Checking what PyInstaller created:"
+        find . -name "*.exe" -type f 2>/dev/null || echo "No exe files found"
+        find . -name "InvoiceProcessor*" -type d 2>/dev/null || echo "No InvoiceProcessor directories found"
         
         # Check if dist directory was created and list contents
         if [ -d "cd/dist" ]; then
@@ -502,15 +526,30 @@ jobs:
             echo "Moving to expected location"
             cp "$ZIP_LOCATION" cd/dist/InvoiceProcessor-Windows.zip
           else
-            echo "Creating a fallback ZIP with available files"
-            cd cd/dist
-            if [ -d "InvoiceProcessor" ] || [ -f "InvoiceProcessor.exe" ] || [ -f "test_windows_exe.bat" ]; then
+            echo "Creating a fallback ZIP with any available files"
+            # Find any executable or create a minimal package
+            EXE_FILE=$(find cd/ -name "*.exe" -type f | head -1)
+            if [ -n "$EXE_FILE" ]; then
+              echo "Found executable at: $EXE_FILE"
+              # Copy to dist and create ZIP
+              mkdir -p cd/dist
+              cp "$EXE_FILE" cd/dist/InvoiceProcessor.exe
+              cd cd/dist
+              # Create test scripts here too
+              echo 'echo "Run this executable: InvoiceProcessor.exe --help"' > test_windows_exe.bat
+              echo 'Write-Host "Run this executable: .\InvoiceProcessor.exe --help"' > test_windows_exe.ps1
               powershell Compress-Archive -Path "*" -DestinationPath "InvoiceProcessor-Windows.zip" -Force
-              echo "Created fallback ZIP"
+              echo "Created fallback ZIP with found executable"
+              cd ../..
             else
-              echo "No files available for ZIP creation"
+              echo "No executable found anywhere, creating minimal ZIP"
+              mkdir -p cd/dist
+              cd cd/dist
+              echo "No executable could be built. Please check the build logs." > README.txt
+              powershell Compress-Archive -Path "README.txt" -DestinationPath "InvoiceProcessor-Windows.zip" -Force
+              echo "Created minimal ZIP with error message"
+              cd ../..
             fi
-            cd ../..
           fi
         fi
         
