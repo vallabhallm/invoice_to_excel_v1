@@ -370,30 +370,39 @@ jobs:
         echo Testing Windows executable...
         echo.
         
+        echo Checking executable location...
+        if exist "InvoiceProcessor\InvoiceProcessor.exe" (
+            echo Found executable in InvoiceProcessor directory
+            set EXEC_PATH=InvoiceProcessor\InvoiceProcessor.exe
+        ) else if exist "InvoiceProcessor.exe" (
+            echo Found executable in current directory
+            set EXEC_PATH=InvoiceProcessor.exe
+        ) else (
+            echo Executable not found!
+            dir /b *.exe
+            pause
+            exit /b 1
+        )
+        
         echo Test 1: Running with --help flag:
         echo ----------------------------------------
-        InvoiceProcessor\InvoiceProcessor.exe --help
+        %EXEC_PATH% --help
         echo.
         echo Exit code: %ERRORLEVEL%
         echo.
         
         echo Test 2: Running with --version flag:
         echo ----------------------------------------
-        InvoiceProcessor\InvoiceProcessor.exe --version
+        %EXEC_PATH% --version
         echo.
         echo Exit code: %ERRORLEVEL%
         echo.
         
         echo Test 3: Running status command:
         echo ----------------------------------------
-        InvoiceProcessor\InvoiceProcessor.exe status
+        %EXEC_PATH% status
         echo.
         echo Exit code: %ERRORLEVEL%
-        echo.
-        
-        echo Test 4: Check if executable exists and is readable:
-        echo ----------------------------------------
-        dir InvoiceProcessor\
         echo.
         
         pause
@@ -403,21 +412,35 @@ jobs:
         Write-Host "Testing Windows executable with PowerShell..." -ForegroundColor Green
         Write-Host ""
         
+        # Check for executable location
+        if (Test-Path ".\InvoiceProcessor\InvoiceProcessor.exe") {
+            Write-Host "Found executable in InvoiceProcessor directory" -ForegroundColor Green
+            $execPath = ".\InvoiceProcessor\InvoiceProcessor.exe"
+        } elseif (Test-Path ".\InvoiceProcessor.exe") {
+            Write-Host "Found executable in current directory" -ForegroundColor Green
+            $execPath = ".\InvoiceProcessor.exe"
+        } else {
+            Write-Host "Executable not found!" -ForegroundColor Red
+            Get-ChildItem -Name "*.exe"
+            Read-Host "Press Enter to continue"
+            exit 1
+        }
+        
         Write-Host "Test 1: Running with --help flag:" -ForegroundColor Yellow
         Write-Host "----------------------------------------"
-        & ".\InvoiceProcessor\InvoiceProcessor.exe" --help
+        & $execPath --help
         Write-Host "Exit code: $LASTEXITCODE"
         Write-Host ""
         
         Write-Host "Test 2: Running with --version flag:" -ForegroundColor Yellow
         Write-Host "----------------------------------------"
-        & ".\InvoiceProcessor\InvoiceProcessor.exe" --version
+        & $execPath --version
         Write-Host "Exit code: $LASTEXITCODE"
         Write-Host ""
         
         Write-Host "Test 3: Running status command:" -ForegroundColor Yellow
         Write-Host "----------------------------------------"
-        & ".\InvoiceProcessor\InvoiceProcessor.exe" status
+        & $execPath status
         Write-Host "Exit code: $LASTEXITCODE"
         Write-Host ""
         
@@ -428,9 +451,34 @@ jobs:
         echo "Final cd/dist contents:"
         ls -la cd/dist/
         
-        # Create ZIP with all files
+        # List all files and directories to see the actual structure
+        echo "All contents in cd/dist/ (including hidden files):"
+        find cd/dist/ -type f -name "*" 2>/dev/null || echo "No files found"
+        find cd/dist/ -type d -name "*" 2>/dev/null || echo "No directories found"
+        
+        # Check what PyInstaller actually created
+        echo "Checking for executable files:"
+        find cd/dist/ -name "*.exe" -type f 2>/dev/null || echo "No .exe files found"
+        
+        # Create ZIP based on what actually exists
         echo "Creating ZIP file..."
-        cd cd/dist && powershell Compress-Archive -Path "InvoiceProcessor","test_windows_exe.bat","test_windows_exe.ps1" -DestinationPath "InvoiceProcessor-Windows.zip"
+        cd cd/dist
+        
+        # Check if InvoiceProcessor directory exists, if not look for exe files directly
+        if [ -d "InvoiceProcessor" ]; then
+          echo "Found InvoiceProcessor directory, creating ZIP with it"
+          powershell Compress-Archive -Path "InvoiceProcessor","test_windows_exe.bat","test_windows_exe.ps1" -DestinationPath "InvoiceProcessor-Windows.zip"
+        elif [ -f "InvoiceProcessor.exe" ]; then
+          echo "Found InvoiceProcessor.exe file directly, creating ZIP with it"
+          powershell Compress-Archive -Path "InvoiceProcessor.exe","test_windows_exe.bat","test_windows_exe.ps1" -DestinationPath "InvoiceProcessor-Windows.zip"
+        else
+          echo "Neither directory nor exe found, creating ZIP with all available files"
+          powershell Compress-Archive -Path "*" -DestinationPath "InvoiceProcessor-Windows.zip"
+        fi
+        
+        # Verify ZIP was created
+        echo "Checking if ZIP was created:"
+        ls -la *.zip
     
     - name: Upload Windows artifact
       uses: actions/upload-artifact@v4
