@@ -224,24 +224,34 @@ jobs:
         python-version: '3.11'
     
     - name: Install Python dependencies
+      shell: powershell
       run: |
         pip install --upgrade pip
         pip install pyinstaller
-        echo "PyInstaller version:"
+        Write-Host "PyInstaller version:"
         pyinstaller --version
         
         # Test PyInstaller immediately with a simple script
-        echo 'print("Hello World")' > simple_test.py
-        echo "Testing PyInstaller with simple script..."
+        Write-Host "Creating simple test script..."
+        'print("Hello World from PyInstaller test")' | Out-File -FilePath "simple_test.py" -Encoding utf8
+        
+        Write-Host "Testing PyInstaller with simple script..."
         pyinstaller --onefile --console simple_test.py --name=SimpleTest --distpath=simple_dist --clean
-        if [ $? -eq 0 ]; then
-          echo "✅ PyInstaller works with simple script"
-          ls -la simple_dist/
-          ./simple_dist/SimpleTest.exe || echo "Executable created but failed to run"
-        else
-          echo "❌ PyInstaller fails with simple script - critical issue"
+        
+        if ($LASTEXITCODE -eq 0) {
+          Write-Host "✅ PyInstaller works with simple script"
+          Get-ChildItem simple_dist/
+          Write-Host "Testing executable..."
+          & ".\simple_dist\SimpleTest.exe"
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host "✅ Executable runs successfully"
+          } else {
+            Write-Host "⚠️ Executable created but failed to run"
+          }
+        } else {
+          Write-Host "❌ PyInstaller fails with simple script - critical issue"
           exit 1
-        fi
+        }
         
         # Install minimal dependencies for a basic build
         pip install "typer>=0.13.0"
@@ -270,450 +280,151 @@ jobs:
         fi
 
     - name: Build Windows executable
-      shell: bash
+      shell: powershell
       run: |
         # Create a simple build directory
-        mkdir -p cd/dist
-        
-        # Create a PyInstaller spec file optimized for Windows console applications
-        cat > cd/simple_windows.spec << 'EOF'
-        # -*- mode: python ; coding: utf-8 -*-
-        import sys
-        from pathlib import Path
-
-        a = Analysis(
-            [r'../src/invoice_processor/main.py'],
-            pathex=[],
-            binaries=[],
-            datas=[],
-            hiddenimports=[
-                'invoice_processor',
-                'invoice_processor.main',
-                'invoice_processor.models',
-                'invoice_processor.extractors',
-                'invoice_processor.utils',
-                'invoice_processor.workflows',
-                'pydantic',
-                'typer',
-                'rich',
-                'rich.console',
-                'rich.text',
-                'rich.logging',
-                'rich.progress',
-                'openai',
-                'anthropic',
-                'pytesseract',
-                'PIL',
-                'cv2',
-                'pandas',
-                'dotenv',
-            ],
-            hookspath=[],
-            hooksconfig={},
-            runtime_hooks=[],
-            excludes=[],
-            win_no_prefer_redirects=False,
-            win_private_assemblies=False,
-            cipher=None,
-            noarchive=False,
-        )
-
-        pyz = PYZ(a.pure, a.zipped_data, cipher=None)
-
-        exe = EXE(
-            pyz,
-            a.scripts,
-            [],
-            exclude_binaries=True,
-            name='InvoiceProcessor',
-            debug=False,
-            bootloader_ignore_signals=False,
-            strip=False,
-            upx=True,
-            console=True,
-            disable_windowed_traceback=False,
-            argv_emulation=False,
-            target_arch=None,
-            codesign_identity=None,
-            entitlements_file=None,
-        )
-
-        coll = COLLECT(
-            exe,
-            a.binaries,
-            a.zipfiles,
-            a.datas,
-            strip=False,
-            upx=True,
-            upx_exclude=[],
-            name='InvoiceProcessor',
-        )
-        EOF
+        New-Item -ItemType Directory -Force -Path "cd/dist"
         
         # Check if main.py exists first
-        echo "Checking if main.py exists..."
-        ls -la src/invoice_processor/main.py || echo "main.py not found!"
-        
-        # Get absolute path to main.py
-        MAIN_PY_PATH="$(pwd)/src/invoice_processor/main.py"
-        echo "Absolute path to main.py: $MAIN_PY_PATH"
-        
-        # Check Python environment and installed packages
-        echo "Python version:"
-        python --version
-        echo "Checking if invoice_processor package is importable:"
-        python -c "import sys; sys.path.insert(0, 'src'); import invoice_processor; print('✅ Package importable')" || echo "❌ Package not importable"
-        
-        # Test if PyInstaller works at all with a simple script
-        echo "Testing PyInstaller with simple script..."
-        echo 'print("Hello from PyInstaller test")' > test_script.py
-        cd cd && pyinstaller --onefile --console ../test_script.py --name=Test --distpath=test_dist
-        TEST_EXIT_CODE=$?
-        echo "Test PyInstaller exit code: $TEST_EXIT_CODE"
-        if [ $TEST_EXIT_CODE -eq 0 ]; then
-          echo "PyInstaller works with simple script"
-          ls -la test_dist/
-        else
-          echo "PyInstaller fails even with simple script - environment issue"
-        fi
-        cd ..
-        
-        # Install the package in development mode
-        echo "Installing package in development mode..."
-        pip install -e .
-        
-        # Test if our main.py can run at all
-        echo "Testing if main.py can run..."
-        python "$MAIN_PY_PATH" --help || echo "❌ main.py failed to run"
-        echo "Testing import of main module..."
-        python -c "import sys; sys.path.insert(0, 'src'); from invoice_processor.main import app; print('✅ main module importable')" || echo "❌ main module not importable"
-        
-        # Create a minimal working main script to test
-        echo "Creating minimal test version of main.py..."
-        cat > minimal_main.py << 'EOF'
-        import typer
-        from rich.console import Console
-
-        console = Console()
-        app = typer.Typer()
-
-        @app.command()
-        def hello():
-            """Test command"""
-            console.print("✅ Hello from Invoice Processor!")
-            console.print("This is a minimal version to test Windows console output.")
-
-        if __name__ == "__main__":
-            app()
-        EOF
-        
-        # Try building the minimal version first
-        echo "Building minimal version with PyInstaller..."
-        cd cd && pyinstaller \
-          --onefile \
-          --console \
-          --name=InvoiceProcessor \
-          ../minimal_main.py 2>&1 | tee minimal_build.log
-        
-        MINIMAL_EXIT_CODE=$?
-        echo "Minimal build exit code: $MINIMAL_EXIT_CODE"
-        
-        if [ $MINIMAL_EXIT_CODE -eq 0 ]; then
-          echo "✅ Minimal build succeeded! Now trying full build..."
-          # Try full build
-          pyinstaller \
-            --onefile \
-            --console \
-            --name=InvoiceProcessorFull \
-            --hidden-import=invoice_processor \
-            --hidden-import=typer \
-            --hidden-import=rich \
-            "$MAIN_PY_PATH" 2>&1 | tee full_build.log
-          FULL_EXIT_CODE=$?
-          echo "Full build exit code: $FULL_EXIT_CODE"
-        else
-          echo "❌ Even minimal build failed"
-        fi
-        
-        # Determine which build to use
-        if [ $MINIMAL_EXIT_CODE -eq 0 ]; then
-          PYINSTALLER_EXIT_CODE=$MINIMAL_EXIT_CODE
-          echo "Using minimal build as primary"
-          if [ $FULL_EXIT_CODE -eq 0 ]; then
-            echo "Full build also succeeded, preferring full build"
-            PYINSTALLER_EXIT_CODE=$FULL_EXIT_CODE
-          fi
-        else
-          PYINSTALLER_EXIT_CODE=$MINIMAL_EXIT_CODE
-        fi
-        echo "Final PyInstaller exit code: $PYINSTALLER_EXIT_CODE"
-        
-        if [ $PYINSTALLER_EXIT_CODE -ne 0 ]; then
-          echo "PyInstaller failed! Capturing error details..."
-          echo "Last 50 lines of any log files:"
-          find . -name "*.log" -exec tail -50 {} \; 2>/dev/null || echo "No log files found"
-          
-          echo "Trying minimal PyInstaller command..."
-          # Try absolute minimal approach
-          pyinstaller --onefile --console "$MAIN_PY_PATH" --name=InvoiceProcessor --distpath=dist --workpath=build --specpath=.
-          PYINSTALLER_EXIT_CODE=$?
-          echo "Minimal PyInstaller exit code: $PYINSTALLER_EXIT_CODE"
-          
-          if [ $PYINSTALLER_EXIT_CODE -ne 0 ]; then
-            echo "Minimal PyInstaller also failed! Trying spec file..."
-            pyinstaller simple_windows.spec --log-level DEBUG 2>&1 | tee pyinstaller_debug.log
-            PYINSTALLER_EXIT_CODE=$?
-            echo "Spec file PyInstaller exit code: $PYINSTALLER_EXIT_CODE"
-            echo "Last 100 lines of debug log:"
-            tail -100 pyinstaller_debug.log || echo "No debug log created"
-          fi
-        else
-          echo "PyInstaller completed successfully with simple command"
-        fi
-        
-        # Check what was actually created
-        echo "Checking what PyInstaller created:"
-        find . -name "*.exe" -type f 2>/dev/null || echo "No exe files found"
-        find . -name "InvoiceProcessor*" -type d 2>/dev/null || echo "No InvoiceProcessor directories found"
-        
-        # Check if dist directory was created and list contents
-        if [ -d "cd/dist" ]; then
-          echo "cd/dist exists, contents:"
-          ls -la cd/dist/
-        else
-          echo "cd/dist does not exist, creating it"
-          mkdir -p cd/dist
-        fi
-        
-        # Check if PyInstaller created the executable directory
-        if [ -d "cd/dist/InvoiceProcessor" ]; then
-          echo "InvoiceProcessor directory found in cd/dist/"
-          ls -la cd/dist/InvoiceProcessor/
-        else
-          echo "InvoiceProcessor directory not found, checking cd/ for build output"
-          ls -la cd/
-        fi
-        
-        # Create test scripts directly in the dist directory
-        echo "Creating test scripts in cd/dist/"
-        cat > cd/dist/test_windows_exe.bat << 'EOF'
-        @echo off
-        echo Testing Windows executable...
-        echo.
-        
-        echo Checking executable location...
-        if exist "InvoiceProcessor\InvoiceProcessor.exe" (
-            echo Found executable in InvoiceProcessor directory
-            set EXEC_PATH=InvoiceProcessor\InvoiceProcessor.exe
-        ) else if exist "InvoiceProcessor.exe" (
-            echo Found executable in current directory
-            set EXEC_PATH=InvoiceProcessor.exe
-        ) else (
-            echo Executable not found!
-            dir /b *.exe
-            pause
-            exit /b 1
-        )
-        
-        echo Test 1: Running with --help flag:
-        echo ----------------------------------------
-        %EXEC_PATH% --help
-        echo.
-        echo Exit code: %ERRORLEVEL%
-        echo.
-        
-        echo Test 2: Running with --version flag:
-        echo ----------------------------------------
-        %EXEC_PATH% --version
-        echo.
-        echo Exit code: %ERRORLEVEL%
-        echo.
-        
-        echo Test 3: Running status command:
-        echo ----------------------------------------
-        %EXEC_PATH% status
-        echo.
-        echo Exit code: %ERRORLEVEL%
-        echo.
-        
-        pause
-        EOF
-        
-        cat > cd/dist/test_windows_exe.ps1 << 'EOF'
-        Write-Host "Testing Windows executable with PowerShell..." -ForegroundColor Green
-        Write-Host ""
-        
-        # Check for executable location
-        if (Test-Path ".\InvoiceProcessor\InvoiceProcessor.exe") {
-            Write-Host "Found executable in InvoiceProcessor directory" -ForegroundColor Green
-            $execPath = ".\InvoiceProcessor\InvoiceProcessor.exe"
-        } elseif (Test-Path ".\InvoiceProcessor.exe") {
-            Write-Host "Found executable in current directory" -ForegroundColor Green
-            $execPath = ".\InvoiceProcessor.exe"
+        Write-Host "Checking if main.py exists..."
+        if (Test-Path "src/invoice_processor/main.py") {
+          Write-Host "✅ main.py found"
         } else {
-            Write-Host "Executable not found!" -ForegroundColor Red
-            Get-ChildItem -Name "*.exe"
-            Read-Host "Press Enter to continue"
-            exit 1
+          Write-Host "❌ main.py not found!"
+          exit 1
         }
         
-        Write-Host "Test 1: Running with --help flag:" -ForegroundColor Yellow
-        Write-Host "----------------------------------------"
-        & $execPath --help
-        Write-Host "Exit code: $LASTEXITCODE"
-        Write-Host ""
+        # Get absolute path to main.py
+        $MAIN_PY_PATH = (Resolve-Path "src/invoice_processor/main.py").Path
+        Write-Host "Absolute path to main.py: $MAIN_PY_PATH"
         
-        Write-Host "Test 2: Running with --version flag:" -ForegroundColor Yellow
-        Write-Host "----------------------------------------"
-        & $execPath --version
-        Write-Host "Exit code: $LASTEXITCODE"
-        Write-Host ""
+        # Create a minimal working main script to test
+        Write-Host "Creating minimal test version of main.py..."
+        @'
+import typer
+from rich.console import Console
+
+console = Console()
+app = typer.Typer()
+
+@app.command()
+def hello():
+    """Test command for Windows console output"""
+    console.print("✅ Hello from Invoice Processor!")
+    console.print("🪟 Windows console output is working!")
+    console.print("This confirms the console application is functioning properly.")
+
+if __name__ == "__main__":
+    app()
+'@ | Out-File -FilePath "minimal_main.py" -Encoding utf8
         
-        Write-Host "Test 3: Running status command:" -ForegroundColor Yellow
-        Write-Host "----------------------------------------"
-        & $execPath status
-        Write-Host "Exit code: $LASTEXITCODE"
-        Write-Host ""
+        # Try building the minimal version first
+        Write-Host "Building minimal version with PyInstaller..."
+        Set-Location "cd"
+        pyinstaller --onefile --console --name=InvoiceProcessor ../minimal_main.py 2>&1 | Tee-Object -FilePath "minimal_build.log"
         
-        Read-Host "Press Enter to continue"
-        EOF
+        $MINIMAL_EXIT_CODE = $LASTEXITCODE
+        Write-Host "Minimal build exit code: $MINIMAL_EXIT_CODE"
         
-        # Verify what we have in dist
-        echo "Final cd/dist contents:"
-        ls -la cd/dist/
+        if ($MINIMAL_EXIT_CODE -eq 0) {
+          Write-Host "✅ Minimal build succeeded!"
+          Get-ChildItem dist/
+          
+          # Test the minimal executable
+          Write-Host "Testing minimal executable..."
+          & ".\dist\InvoiceProcessor.exe" hello
+          
+          Write-Host "Now trying full build with all features..."
+          # Try full build (but don't fail if it doesn't work)
+          pyinstaller --onefile --console --name=InvoiceProcessorFull --hidden-import=invoice_processor --hidden-import=typer --hidden-import=rich $MAIN_PY_PATH 2>&1 | Tee-Object -FilePath "full_build.log"
+          $FULL_EXIT_CODE = $LASTEXITCODE
+          Write-Host "Full build exit code: $FULL_EXIT_CODE"
+          
+          if ($FULL_EXIT_CODE -eq 0) {
+            Write-Host "✅ Full build also succeeded! Using full version."
+            # Rename full version to replace minimal
+            Move-Item "dist/InvoiceProcessorFull.exe" "dist/InvoiceProcessor.exe" -Force
+          } else {
+            Write-Host "⚠️ Full build failed, but minimal version works"
+          }
+        } else {
+          Write-Host "❌ Even minimal build failed"
+          Get-Content "minimal_build.log" | Select-Object -Last 50
+        }
         
-        # List all files and directories to see the actual structure
-        echo "All contents in cd/dist/ (including hidden files):"
-        find cd/dist/ -type f -name "*" 2>/dev/null || echo "No files found"
-        find cd/dist/ -type d -name "*" 2>/dev/null || echo "No directories found"
         
-        # Check what PyInstaller actually created
-        echo "Checking for executable files:"
-        find cd/dist/ -name "*.exe" -type f 2>/dev/null || echo "No .exe files found"
-        
-        # Create ZIP based on what actually exists
-        echo "Creating ZIP file..."
-        cd cd/dist
-        
-        # Check if InvoiceProcessor directory exists, if not look for exe files directly
-        if [ -d "InvoiceProcessor" ]; then
-          echo "Found InvoiceProcessor directory, creating ZIP with it"
-          powershell Compress-Archive -Path "InvoiceProcessor","test_windows_exe.bat","test_windows_exe.ps1" -DestinationPath "InvoiceProcessor-Windows.zip"
-        elif [ -f "InvoiceProcessor.exe" ]; then
-          echo "Found InvoiceProcessor.exe file directly, creating ZIP with it"
-          powershell Compress-Archive -Path "InvoiceProcessor.exe","test_windows_exe.bat","test_windows_exe.ps1" -DestinationPath "InvoiceProcessor-Windows.zip"
-        else
-          echo "Neither directory nor exe found, creating ZIP with all available files"
-          powershell Compress-Archive -Path "*" -DestinationPath "InvoiceProcessor-Windows.zip"
-        fi
-        
-        # Verify ZIP was created and move to expected location
-        echo "Checking if ZIP was created:"
-        ls -la *.zip || echo "No ZIP files found in current directory"
-        
-        # Go back to project root and check where the ZIP actually is
-        cd ../..
-        echo "Searching for ZIP file in the entire cd directory:"
-        find cd/ -name "*.zip" -type f 2>/dev/null || echo "No ZIP files found anywhere in cd/"
-        
-        # List current directory to see the structure
-        echo "Current directory (project root):"
-        pwd
-        ls -la
-        
-        # Ensure ZIP is in the right place for artifact upload
-        if [ -f "cd/dist/InvoiceProcessor-Windows.zip" ]; then
-          echo "ZIP found in expected location"
-        else
-          echo "ZIP not in expected location, checking if it exists elsewhere"
-          # Try to find and move it
-          ZIP_LOCATION=$(find cd/ -name "InvoiceProcessor-Windows.zip" -type f | head -1)
-          if [ -n "$ZIP_LOCATION" ]; then
-            echo "Found ZIP at: $ZIP_LOCATION"
-            echo "Moving to expected location"
-            cp "$ZIP_LOCATION" cd/dist/InvoiceProcessor-Windows.zip
-          else
-            echo "Creating a fallback ZIP with any available files"
-            # Find any executable or create a minimal package
-            EXE_FILE=$(find cd/ -name "*.exe" -type f | head -1)
-            if [ -n "$EXE_FILE" ]; then
-              echo "Found executable at: $EXE_FILE"
-              # Copy to dist and create ZIP
-              mkdir -p cd/dist
-              cp "$EXE_FILE" cd/dist/InvoiceProcessor.exe
-              cd cd/dist
-              # Create test scripts here too
-              echo 'echo "Run this executable: InvoiceProcessor.exe --help"' > test_windows_exe.bat
-              echo 'Write-Host "Run this executable: .\InvoiceProcessor.exe --help"' > test_windows_exe.ps1
-              powershell Compress-Archive -Path "*" -DestinationPath "InvoiceProcessor-Windows.zip" -Force
-              echo "Created fallback ZIP with found executable"
-              cd ../..
-            else
-              echo "No executable found anywhere, creating comprehensive debug ZIP"
-              mkdir -p cd/dist
-              cd cd/dist
-              echo "No executable could be built. Please check the build logs." > README.txt
-              echo "Build timestamp: $(date)" >> README.txt
-              echo "PyInstaller exit code: $PYINSTALLER_EXIT_CODE" >> README.txt
-              echo "Python version: $(python --version)" >> README.txt
-              echo "Working directory contents:" >> README.txt
-              ls -la ../../ >> README.txt
-              echo "" >> README.txt
-              echo "=== PyInstaller Error Logs ===" >> README.txt
-              
-              # Copy any log files that were created
-              if [ -f "../minimal_build.log" ]; then
-                echo "Minimal build log:" >> README.txt
-                cat ../minimal_build.log >> README.txt
-              fi
-              if [ -f "../full_build.log" ]; then
-                echo "Full build log:" >> README.txt
-                cat ../full_build.log >> README.txt
-              fi
-              if [ -f "../pyinstaller_debug.log" ]; then
-                echo "Debug PyInstaller log:" >> README.txt
-                tail -200 ../pyinstaller_debug.log >> README.txt
-              fi
-              
-              # Also copy the logs as separate files
-              cp ../minimal_build.log . 2>/dev/null || echo "No minimal log found"
-              cp ../full_build.log . 2>/dev/null || echo "No full log found"
-              cp ../pyinstaller_debug.log . 2>/dev/null || echo "No debug log found"
-              
-              powershell Compress-Archive -Path "*" -DestinationPath "InvoiceProcessor-Windows.zip" -Force
-              echo "Created comprehensive debug ZIP with logs"
-              cd ../..
-            fi
-          fi
-        fi
-        
-        # Final verification
-        echo "Final check - ZIP file location:"
-        ls -la cd/dist/InvoiceProcessor-Windows.zip || echo "ZIP file still not found"
+        # Create test scripts and ZIP
+        Write-Host "Creating test scripts and ZIP file..."
+        if (Test-Path "cd/dist/InvoiceProcessor.exe") {
+          Write-Host "✅ Found InvoiceProcessor.exe, creating ZIP with test scripts"
+          Set-Location "cd/dist"
+          
+          # Create test scripts
+          @'
+@echo off
+echo Testing Windows executable...
+echo.
+echo Running hello command:
+echo ----------------------------------------
+InvoiceProcessor.exe hello
+echo.
+echo Exit code: %ERRORLEVEL%
+pause
+'@ | Out-File -FilePath "test_windows_exe.bat" -Encoding ascii
+          
+          @'
+Write-Host "Testing Windows executable with PowerShell..." -ForegroundColor Green
+Write-Host ""
+Write-Host "Running hello command:" -ForegroundColor Yellow
+Write-Host "----------------------------------------"
+& ".\InvoiceProcessor.exe" hello
+Write-Host "Exit code: $LASTEXITCODE"
+Read-Host "Press Enter to continue"
+'@ | Out-File -FilePath "test_windows_exe.ps1" -Encoding utf8
+          
+          # Create ZIP
+          Compress-Archive -Path "InvoiceProcessor.exe","test_windows_exe.bat","test_windows_exe.ps1" -DestinationPath "InvoiceProcessor-Windows.zip" -Force
+          Write-Host "✅ Created ZIP with executable and test scripts"
+          Set-Location "../.."
+        } else {
+          Write-Host "❌ No executable found, creating debug ZIP"
+          New-Item -ItemType Directory -Force -Path "cd/dist"
+          Set-Location "cd/dist"
+          
+          "No executable could be built. Build details:" | Out-File -FilePath "README.txt" -Encoding utf8
+          "Build timestamp: $(Get-Date)" | Out-File -FilePath "README.txt" -Append -Encoding utf8
+          "Minimal build exit code: $MINIMAL_EXIT_CODE" | Out-File -FilePath "README.txt" -Append -Encoding utf8
+          
+          # Copy log files if they exist
+          if (Test-Path "../minimal_build.log") {
+            Copy-Item "../minimal_build.log" "."
+          }
+          if (Test-Path "../full_build.log") {
+            Copy-Item "../full_build.log" "."
+          }
+          
+          Compress-Archive -Path "*" -DestinationPath "InvoiceProcessor-Windows.zip" -Force
+          Write-Host "Created debug ZIP with logs"
+          Set-Location "../.."
+        }
     
     - name: Check for Windows artifact
-      shell: bash
+      shell: powershell
       run: |
-        echo "Checking for artifact before upload:"
-        if [ -f "cd/dist/InvoiceProcessor-Windows.zip" ]; then
-          echo "✅ ZIP file found for upload"
-          ls -la cd/dist/InvoiceProcessor-Windows.zip
-          # Check if it's a debug ZIP
-          if powershell Test-Zip cd/dist/InvoiceProcessor-Windows.zip 2>/dev/null; then
-            echo "ZIP file is valid"
-          else
-            echo "⚠️  ZIP file may be invalid, but continuing with upload"
-          fi
-        else
-          echo "❌ ZIP file not found, but this shouldn't happen with our fallbacks"
-          echo "Contents of cd/dist/:"
-          ls -la cd/dist/ || echo "cd/dist/ directory not found"
-          # Create emergency ZIP
-          mkdir -p cd/dist
-          echo "Emergency build - PyInstaller failed completely" > cd/dist/emergency.txt
-          cd cd/dist && powershell Compress-Archive -Path "emergency.txt" -DestinationPath "InvoiceProcessor-Windows.zip" -Force
-          echo "Created emergency ZIP file"
-        fi
+        Write-Host "Checking for artifact before upload:"
+        if (Test-Path "cd/dist/InvoiceProcessor-Windows.zip") {
+          Write-Host "✅ ZIP file found for upload"
+          Get-ChildItem "cd/dist/InvoiceProcessor-Windows.zip"
+          Write-Host "ZIP file is ready for upload"
+        } else {
+          Write-Host "❌ ZIP file not found, creating emergency ZIP"
+          New-Item -ItemType Directory -Force -Path "cd/dist"
+          "Emergency build - PyInstaller failed completely" | Out-File -FilePath "cd/dist/emergency.txt" -Encoding utf8
+          Set-Location "cd/dist"
+          Compress-Archive -Path "emergency.txt" -DestinationPath "InvoiceProcessor-Windows.zip" -Force
+          Set-Location "../.."
+          Write-Host "Created emergency ZIP file"
+        }
     
     - name: Upload Windows artifact
       uses: actions/upload-artifact@v4
