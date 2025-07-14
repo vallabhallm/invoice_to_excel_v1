@@ -476,9 +476,61 @@ jobs:
           powershell Compress-Archive -Path "*" -DestinationPath "InvoiceProcessor-Windows.zip"
         fi
         
-        # Verify ZIP was created
+        # Verify ZIP was created and move to expected location
         echo "Checking if ZIP was created:"
-        ls -la *.zip
+        ls -la *.zip || echo "No ZIP files found in current directory"
+        
+        # Go back to project root and check where the ZIP actually is
+        cd ../..
+        echo "Searching for ZIP file in the entire cd directory:"
+        find cd/ -name "*.zip" -type f 2>/dev/null || echo "No ZIP files found anywhere in cd/"
+        
+        # List current directory to see the structure
+        echo "Current directory (project root):"
+        pwd
+        ls -la
+        
+        # Ensure ZIP is in the right place for artifact upload
+        if [ -f "cd/dist/InvoiceProcessor-Windows.zip" ]; then
+          echo "ZIP found in expected location"
+        else
+          echo "ZIP not in expected location, checking if it exists elsewhere"
+          # Try to find and move it
+          ZIP_LOCATION=$(find cd/ -name "InvoiceProcessor-Windows.zip" -type f | head -1)
+          if [ -n "$ZIP_LOCATION" ]; then
+            echo "Found ZIP at: $ZIP_LOCATION"
+            echo "Moving to expected location"
+            cp "$ZIP_LOCATION" cd/dist/InvoiceProcessor-Windows.zip
+          else
+            echo "Creating a fallback ZIP with available files"
+            cd cd/dist
+            if [ -d "InvoiceProcessor" ] || [ -f "InvoiceProcessor.exe" ] || [ -f "test_windows_exe.bat" ]; then
+              powershell Compress-Archive -Path "*" -DestinationPath "InvoiceProcessor-Windows.zip" -Force
+              echo "Created fallback ZIP"
+            else
+              echo "No files available for ZIP creation"
+            fi
+            cd ../..
+          fi
+        fi
+        
+        # Final verification
+        echo "Final check - ZIP file location:"
+        ls -la cd/dist/InvoiceProcessor-Windows.zip || echo "ZIP file still not found"
+    
+    - name: Check for Windows artifact
+      shell: bash
+      run: |
+        echo "Checking for artifact before upload:"
+        if [ -f "cd/dist/InvoiceProcessor-Windows.zip" ]; then
+          echo "✅ ZIP file found for upload"
+          ls -la cd/dist/InvoiceProcessor-Windows.zip
+        else
+          echo "❌ ZIP file not found"
+          echo "Contents of cd/dist/:"
+          ls -la cd/dist/ || echo "cd/dist/ directory not found"
+          exit 1
+        fi
     
     - name: Upload Windows artifact
       uses: actions/upload-artifact@v4
