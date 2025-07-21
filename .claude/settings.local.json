@@ -5,7 +5,13 @@
       "Bash(./quickstart.sh:*)",
       "Bash(poetry run:*)",
       "Bash(poetry install:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(python3:*)",
+      "Bash(poetry version:*)",
+      "Bash(ls:*)",
+      "Bash(./build_windows.sh:*)",
+      "Bash(cd:*)",
+      "Bash(find:*)"
     ],
     "deny": []
   }

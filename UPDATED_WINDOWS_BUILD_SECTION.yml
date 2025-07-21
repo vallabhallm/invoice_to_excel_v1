@@ -1,0 +1,40 @@
+    - name: Build Windows executable
+      shell: bash
+      run: |
+        # Use our fixed Windows build script
+        cd cd/scripts
+        ./build_windows.sh
+    
+    - name: Create Windows distribution ZIP  
+      shell: bash
+      run: |
+        cd cd/dist
+        # Create ZIP with the Windows executable and test scripts
+        if [ -f "InvoiceProcessor-*-windows_64bit.exe" ]; then
+          # Create test scripts
+          cat > test_windows.bat << 'EOF'
+@echo off
+echo Testing Invoice Processor Windows executable...
+echo.
+echo Running executable:
+echo ----------------------------------------
+InvoiceProcessor-*-windows_64bit.exe --help
+echo.
+echo Exit code: %ERRORLEVEL%
+pause
+EOF
+          
+          # ZIP the executable and test script
+          zip -r InvoiceProcessor-Windows.zip InvoiceProcessor-*-windows_64bit.exe test_windows.bat
+          echo "✅ Created InvoiceProcessor-Windows.zip"
+        else
+          echo "❌ Windows executable not found"
+          exit 1
+        fi
+    
+    - name: Upload Windows artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: windows-exe
+        path: cd/dist/InvoiceProcessor-Windows.zip
+        retention-days: 30
