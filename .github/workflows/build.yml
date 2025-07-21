@@ -218,53 +218,28 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     
+    - name: Install Poetry
+      uses: snok/install-poetry@v1
+      with:
+        version: latest
+        virtualenvs-create: true
+        virtualenvs-in-project: true
+    
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
         python-version: '3.11'
+        cache: 'poetry'
     
-    - name: Install Python dependencies
-      shell: powershell
-      run: |
-        pip install --upgrade pip
-        pip install pyinstaller
-        Write-Host "PyInstaller version:"
-        pyinstaller --version
-        
-        # Test PyInstaller immediately with a simple script
-        Write-Host "Creating simple test script..."
-        'print("Hello World from PyInstaller test")' | Out-File -FilePath "simple_test.py" -Encoding utf8
-        
-        Write-Host "Testing PyInstaller with simple script..."
-        pyinstaller --onefile --console simple_test.py --name=SimpleTest --distpath=simple_dist --clean
-        
-        if ($LASTEXITCODE -eq 0) {
-          Write-Host "✅ PyInstaller works with simple script"
-          Get-ChildItem simple_dist/
-          Write-Host "Testing executable..."
-          & ".\simple_dist\SimpleTest.exe"
-          if ($LASTEXITCODE -eq 0) {
-            Write-Host "✅ Executable runs successfully"
-          } else {
-            Write-Host "⚠️ Executable created but failed to run"
-          }
-        } else {
-          Write-Host "❌ PyInstaller fails with simple script - critical issue"
-          exit 1
-        }
-        
-        # Install minimal dependencies for a basic build
-        pip install "typer>=0.13.0"
-        pip install "rich>=13.7.0"
-        pip install "python-dotenv>=1.0.0"
-        
-        # Install the package in development mode
-        pip install -e .
-    
-    - name: Install Windows dependencies
+    - name: Install system dependencies
       run: |
         # Install ImageMagick and Tesseract on Windows
         choco install imagemagick tesseract --yes
+    
+    - name: Install Python dependencies
+      run: |
+        poetry install --no-interaction
+        poetry add --group=dev pyinstaller
     
     - name: Create app icon
       shell: bash
