@@ -41,12 +41,71 @@ main() {
     # Activate poetry environment and build
     log_info "Building Windows executable with PyInstaller..."
     
-    poetry run pyinstaller \
-        --distpath "$cd_dir/build/windows" \
-        --workpath "$cd_dir/build/temp" \
-        --clean \
-        --noconfirm \
-        "$cd_dir/config/windows.spec"
+    # Check if Windows Python is available for native Windows builds
+    local windows_python="/mnt/c/Users/jack/AppData/Local/Programs/Python/Python311/python.exe"
+    
+    if [[ -f "$windows_python" ]]; then
+        log_info "Building native Windows executable using Windows Python..."
+        
+        # Build 64-bit Windows executable using native Windows Python
+        mkdir -p "$cd_dir/build/windows_native"
+        
+        # Convert Linux paths to Windows paths
+        local windows_distpath
+        local windows_workpath  
+        local windows_main_script
+        windows_distpath=$(echo "$cd_dir/build/windows_native" | sed 's|/mnt/c|C:|')
+        windows_workpath=$(echo "$cd_dir/build/temp_native" | sed 's|/mnt/c|C:|')
+        windows_main_script=$(echo "$project_root/src/invoice_processor/main.py" | sed 's|/mnt/c|C:|')
+        
+        "$windows_python" -m PyInstaller \
+            --onefile \
+            --console \
+            --name "${APP_NAME}_64bit" \
+            --distpath "$windows_distpath" \
+            --workpath "$windows_workpath" \
+            --clean \
+            --noconfirm \
+            "$windows_main_script"
+        
+        if [[ -f "$cd_dir/build/windows_native/${APP_NAME}_64bit.exe" ]]; then
+            # Copy to standard location for compatibility
+            cp "$cd_dir/build/windows_native/${APP_NAME}_64bit.exe" "$cd_dir/build/windows/$APP_NAME.exe"
+            log_success "64-bit Windows executable created: $cd_dir/build/windows_native/${APP_NAME}_64bit.exe"
+        else
+            log_error "64-bit Windows executable not created"
+            return 1
+        fi
+        
+    else
+        log_warning "Windows Python not found. Building using WSL PyInstaller (Linux binary)..."
+        
+        # Use tmp directory to avoid WSL permission issues (creates Linux binary)
+        local tmp_dist="/tmp/windows_build_$(date +%s)"
+        local tmp_work="/tmp/windows_build_temp_$(date +%s)"
+        
+        poetry run pyinstaller \
+            --distpath "$tmp_dist" \
+            --workpath "$tmp_work" \
+            --clean \
+            --noconfirm \
+            "$cd_dir/config/windows.spec"
+        
+        # Copy built executable to final location
+        mkdir -p "$cd_dir/build/windows"
+        if [[ -f "$tmp_dist/$APP_NAME" ]]; then
+            # Copy and rename to .exe for Windows convention (though it's a Linux binary)
+            cp "$tmp_dist/$APP_NAME" "$cd_dir/build/windows/$APP_NAME.exe"
+            log_success "Executable copied to $cd_dir/build/windows/$APP_NAME.exe"
+            log_warning "Note: This is a Linux binary, not a Windows executable"
+        else
+            log_error "Built executable not found in $tmp_dist"
+            return 1
+        fi
+        
+        # Cleanup temporary directories
+        rm -rf "$tmp_dist" "$tmp_work" 2>/dev/null || true
+    fi
     
     local exe_file="$cd_dir/build/windows/$APP_NAME.exe"
     
@@ -60,8 +119,16 @@ main() {
     # Validate the executable
     validate_executable "$exe_file"
     
-    # Create installer
+    # Create installer and distribution files
     create_installer "$exe_file" "$cd_dir"
+    
+    # Copy Windows native executable to dist if it exists
+    if [[ -f "$cd_dir/build/windows_native/${APP_NAME}_64bit.exe" ]]; then
+        local version
+        version=$(get_app_version)
+        cp "$cd_dir/build/windows_native/${APP_NAME}_64bit.exe" "$cd_dir/dist/${APP_NAME}-$version-windows_64bit.exe"
+        log_success "64-bit distribution created: $cd_dir/dist/${APP_NAME}-$version-windows_64bit.exe"
+    fi
     
     local end_time
     end_time=$(date +%s)

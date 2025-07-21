@@ -1,6 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
 """
-PyInstaller spec file for Windows distribution
+PyInstaller spec file for Windows 32-bit distribution
 """
 
 import sys
@@ -20,7 +20,7 @@ except ImportError:
     # Fallback if import fails - use absolute path resolution
     ROOT_DIR = Path("/mnt/c/claude/text-to-excel/invoice_to_excel_v1")
     SRC_DIR = ROOT_DIR / "src"
-    APP_NAME = "InvoiceProcessor"
+    APP_NAME = "InvoiceProcessor_32bit"
     APP_VERSION = "1.0.0"
     WINDOWS_SETTINGS = {
         "icon": str(ROOT_DIR / "cd" / "assets" / "icons" / "app.ico"),
@@ -90,10 +90,10 @@ exe = EXE(
     upx=True,
     upx_exclude=[],
     runtime_tmpdir=None,
-    console=True,  # Changed to True for better Windows CLI compatibility
+    console=True,  # Console mode for CLI compatibility
     disable_windowed_traceback=False,
     argv_emulation=False,
-    target_arch=None,
+    target_arch='i686',  # Explicitly target 32-bit architecture
     codesign_identity=None,
     entitlements_file=None,
     icon=WINDOWS_SETTINGS["icon"] if os.path.exists(WINDOWS_SETTINGS["icon"]) else None,
