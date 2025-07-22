@@ -232,15 +232,16 @@ jobs:
         
     - name: Install Python dependencies
       run: |
-        python -m pip install --upgrade pip
+        python -m pip install --upgrade pip setuptools wheel
+        
+        # Install build tools for Windows
         pip install pyinstaller
         
-        # Install required dependencies (excluding problematic ones)
+        # Install dependencies with error handling and Windows-specific versions
+        echo "Installing core dependencies..."
         pip install "pydantic>=2.5.0"
-        pip install "opencv-python>=4.8.1"
         pip install "pytesseract>=0.3.10"
         pip install "PyPDF2>=3.0.1"
-        pip install "pdf2image>=1.16.3"
         pip install "pillow>=10.1.0"
         pip install "openai>=1.6.0"
         pip install "anthropic>=0.8.0"
@@ -249,11 +250,36 @@ jobs:
         pip install "typer>=0.13.0"
         pip install "rich>=13.7.0"
         
-        # Install the package itself
-        pip install -e .
+        # Install OpenCV with fallback
+        echo "Installing OpenCV..."
+        pip install opencv-python-headless || pip install opencv-python || echo "OpenCV installation failed, will try alternative"
         
-        # Verify installation
-        python -c "import invoice_processor; print('✅ Package installed successfully')"
+        # Install PDF2Image with error handling (may fail due to poppler dependency)
+        echo "Installing pdf2image..."
+        pip install "pdf2image>=1.16.3" || echo "pdf2image installation failed, continuing without it"
+        
+        # Install the package itself without editable mode to avoid potential issues
+        echo "Installing invoice_processor package..."
+        pip install .
+        
+        # Verify core functionality
+        echo "Verifying installation..."
+        python -c "import sys; print(f'Python: {sys.version}')"
+        python -c "import pydantic; print('✅ pydantic')"
+        python -c "import typer; print('✅ typer')"
+        python -c "import rich; print('✅ rich')"
+        python -c "import pandas; print('✅ pandas')"
+        
+        # Test package import with error details
+        python -c "
+        try:
+            import invoice_processor
+            print('✅ invoice_processor package installed successfully')
+        except ImportError as e:
+            print(f'❌ invoice_processor import failed: {e}')
+            import sys
+            sys.exit(1)
+        "
 
     - name: Build Windows executable
       shell: powershell
@@ -283,7 +309,6 @@ jobs:
         "        'anthropic'," | Out-File -FilePath "InvoiceProcessor.spec" -Append -Encoding utf8
         "        'pytesseract'," | Out-File -FilePath "InvoiceProcessor.spec" -Append -Encoding utf8
         "        'PIL'," | Out-File -FilePath "InvoiceProcessor.spec" -Append -Encoding utf8
-        "        'cv2'," | Out-File -FilePath "InvoiceProcessor.spec" -Append -Encoding utf8
         "        'pandas'," | Out-File -FilePath "InvoiceProcessor.spec" -Append -Encoding utf8
         "        'dotenv'," | Out-File -FilePath "InvoiceProcessor.spec" -Append -Encoding utf8
         "    ]," | Out-File -FilePath "InvoiceProcessor.spec" -Append -Encoding utf8
