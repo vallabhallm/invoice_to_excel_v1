@@ -222,6 +222,7 @@ jobs:
       uses: actions/setup-python@v4
       with:
         python-version: '3.11'
+        cache: 'pip'
     
     - name: Install system dependencies
       run: |
@@ -233,6 +234,7 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install pyinstaller
+        
         # Install required dependencies (excluding problematic ones)
         pip install "pydantic>=2.5.0"
         pip install "opencv-python>=4.8.1"
@@ -246,7 +248,12 @@ jobs:
         pip install "python-dotenv>=1.0.0"
         pip install "typer>=0.13.0"
         pip install "rich>=13.7.0"
+        
+        # Install the package itself
         pip install -e .
+        
+        # Verify installation
+        python -c "import invoice_processor; print('✅ Package installed successfully')"
 
     - name: Build Windows executable
       shell: powershell
@@ -321,7 +328,22 @@ exe = EXE(
         
         # Build executable
         Write-Host "Building Windows executable with PyInstaller..."
-        pyinstaller --clean --noconfirm InvoiceProcessor.spec
+        Write-Host "Current directory: $(Get-Location)"
+        Write-Host "PyInstaller version: $(pyinstaller --version)"
+        
+        # Run PyInstaller with verbose output for debugging
+        pyinstaller --clean --noconfirm --log-level INFO InvoiceProcessor.spec
+        
+        Write-Host "PyInstaller completed. Checking output..."
+        if (Test-Path "dist") {
+          Write-Host "Contents of dist directory:"
+          Get-ChildItem "dist" -Recurse | ForEach-Object {
+            $Size = if ($_.PSIsContainer) { "[DIR]" } else { "$($_.Length) bytes" }
+            Write-Host "  $($_.Name) - $Size"
+          }
+        } else {
+          Write-Host "❌ dist directory not created"
+        }
         
         if (Test-Path "dist/InvoiceProcessor.exe") {
           Write-Host "✅ Executable created successfully"
@@ -333,11 +355,17 @@ exe = EXE(
           try {
             $TestOutput = & "dist/InvoiceProcessor.exe" --help 2>&1
             Write-Host "✅ Executable runs successfully!"
+            Write-Host "Help output (first 5 lines):"
+            $TestOutput | Select-Object -First 5 | ForEach-Object { Write-Host "  $_" }
           } catch {
             Write-Host "⚠️ Executable test failed: $_"
           }
         } else {
           Write-Host "❌ Executable not created"
+          Write-Host "Checking for any .exe files in dist:"
+          if (Test-Path "dist") {
+            Get-ChildItem "dist" -Filter "*.exe" | ForEach-Object { Write-Host "Found: $($_.Name)" }
+          }
           exit 1
         }
     
