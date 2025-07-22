@@ -372,20 +372,16 @@ jobs:
         # Create distribution ZIP
         Set-Location "dist"
         
-        # Create test script for users
-        $testScript = @'
-@echo off
-echo Testing Invoice Processor Windows executable...
-echo.
-echo Running executable:
-echo ----------------------------------------
-InvoiceProcessor.exe --help
-echo.
-echo Exit code: %ERRORLEVEL%
-pause
-'@
-        
-        $testScript | Out-File -FilePath "test_windows.bat" -Encoding ascii
+        # Create test script for users using line-by-line approach
+        "@echo off" | Out-File -FilePath "test_windows.bat" -Encoding ascii
+        "echo Testing Invoice Processor Windows executable..." | Out-File -FilePath "test_windows.bat" -Append -Encoding ascii
+        "echo." | Out-File -FilePath "test_windows.bat" -Append -Encoding ascii
+        "echo Running executable:" | Out-File -FilePath "test_windows.bat" -Append -Encoding ascii
+        "echo ----------------------------------------" | Out-File -FilePath "test_windows.bat" -Append -Encoding ascii
+        "InvoiceProcessor.exe --help" | Out-File -FilePath "test_windows.bat" -Append -Encoding ascii
+        "echo." | Out-File -FilePath "test_windows.bat" -Append -Encoding ascii
+        "echo Exit code: %ERRORLEVEL%" | Out-File -FilePath "test_windows.bat" -Append -Encoding ascii
+        "pause" | Out-File -FilePath "test_windows.bat" -Append -Encoding ascii
         
         # Create ZIP with executable and test script
         if (Test-Path "InvoiceProcessor.exe") {
