@@ -261,70 +261,67 @@ jobs:
         # Create dist directory
         New-Item -ItemType Directory -Force -Path "dist"
         
-        # Create a simple PyInstaller spec file
-        $specContent = @'
-# -*- mode: python ; coding: utf-8 -*-
-
-a = Analysis(
-    ['src/invoice_processor/main.py'],
-    pathex=[],
-    binaries=[],
-    datas=[],
-    hiddenimports=[
-        'invoice_processor',
-        'invoice_processor.main',
-        'invoice_processor.models',
-        'invoice_processor.extractors', 
-        'invoice_processor.utils',
-        'invoice_processor.workflows',
-        'pydantic',
-        'typer',
-        'rich',
-        'openai',
-        'anthropic',
-        'pytesseract',
-        'PIL',
-        'cv2',
-        'pandas',
-        'dotenv',
-    ],
-    hookspath=[],
-    hooksconfig={},
-    runtime_hooks=[],
-    excludes=['prefect', 'tests', 'pytest'],
-    win_no_prefer_redirects=False,
-    win_private_assemblies=False,
-    cipher=None,
-    noarchive=False,
-)
-
-pyz = PYZ(a.pure, a.zipped_data, cipher=None)
-
-exe = EXE(
-    pyz,
-    a.scripts,
-    a.binaries,
-    a.zipfiles,
-    a.datas,
-    [],
-    name='InvoiceProcessor',
-    debug=False,
-    bootloader_ignore_signals=False,
-    strip=False,
-    upx=True,
-    upx_exclude=[],
-    runtime_tmpdir=None,
-    console=True,
-    disable_windowed_traceback=False,
-    argv_emulation=False,
-    target_arch='x86_64',
-    codesign_identity=None,
-    entitlements_file=None,
-)
-'@
+        # Create PyInstaller spec file using line-by-line approach
+        "# -*- mode: python ; coding: utf-8 -*-" | Out-File -FilePath "InvoiceProcessor.spec" -Encoding utf8
+        "" | Out-File -FilePath "InvoiceProcessor.spec" -Append -Encoding utf8
+        "a = Analysis(" | Out-File -FilePath "InvoiceProcessor.spec" -Append -Encoding utf8
+        "    ['src/invoice_processor/main.py']," | Out-File -FilePath "InvoiceProcessor.spec" -Append -Encoding utf8
+        "    pathex=[]," | Out-File -FilePath "InvoiceProcessor.spec" -Append -Encoding utf8
+        "    binaries=[]," | Out-File -FilePath "InvoiceProcessor.spec" -Append -Encoding utf8
+        "    datas=[]," | Out-File -FilePath "InvoiceProcessor.spec" -Append -Encoding utf8
+        "    hiddenimports=[" | Out-File -FilePath "InvoiceProcessor.spec" -Append -Encoding utf8
+        "        'invoice_processor'," | Out-File -FilePath "InvoiceProcessor.spec" -Append -Encoding utf8
+        "        'invoice_processor.main'," | Out-File -FilePath "InvoiceProcessor.spec" -Append -Encoding utf8
+        "        'invoice_processor.models'," | Out-File -FilePath "InvoiceProcessor.spec" -Append -Encoding utf8
+        "        'invoice_processor.extractors'," | Out-File -FilePath "InvoiceProcessor.spec" -Append -Encoding utf8
+        "        'invoice_processor.utils'," | Out-File -FilePath "InvoiceProcessor.spec" -Append -Encoding utf8
+        "        'invoice_processor.workflows'," | Out-File -FilePath "InvoiceProcessor.spec" -Append -Encoding utf8
+        "        'pydantic'," | Out-File -FilePath "InvoiceProcessor.spec" -Append -Encoding utf8
+        "        'typer'," | Out-File -FilePath "InvoiceProcessor.spec" -Append -Encoding utf8
+        "        'rich'," | Out-File -FilePath "InvoiceProcessor.spec" -Append -Encoding utf8
+        "        'openai'," | Out-File -FilePath "InvoiceProcessor.spec" -Append -Encoding utf8
+        "        'anthropic'," | Out-File -FilePath "InvoiceProcessor.spec" -Append -Encoding utf8
+        "        'pytesseract'," | Out-File -FilePath "InvoiceProcessor.spec" -Append -Encoding utf8
+        "        'PIL'," | Out-File -FilePath "InvoiceProcessor.spec" -Append -Encoding utf8
+        "        'cv2'," | Out-File -FilePath "InvoiceProcessor.spec" -Append -Encoding utf8
+        "        'pandas'," | Out-File -FilePath "InvoiceProcessor.spec" -Append -Encoding utf8
+        "        'dotenv'," | Out-File -FilePath "InvoiceProcessor.spec" -Append -Encoding utf8
+        "    ]," | Out-File -FilePath "InvoiceProcessor.spec" -Append -Encoding utf8
+        "    hookspath=[]," | Out-File -FilePath "InvoiceProcessor.spec" -Append -Encoding utf8
+        "    hooksconfig={}," | Out-File -FilePath "InvoiceProcessor.spec" -Append -Encoding utf8
+        "    runtime_hooks=[]," | Out-File -FilePath "InvoiceProcessor.spec" -Append -Encoding utf8
+        "    excludes=['prefect', 'tests', 'pytest']," | Out-File -FilePath "InvoiceProcessor.spec" -Append -Encoding utf8
+        "    win_no_prefer_redirects=False," | Out-File -FilePath "InvoiceProcessor.spec" -Append -Encoding utf8
+        "    win_private_assemblies=False," | Out-File -FilePath "InvoiceProcessor.spec" -Append -Encoding utf8
+        "    cipher=None," | Out-File -FilePath "InvoiceProcessor.spec" -Append -Encoding utf8
+        "    noarchive=False," | Out-File -FilePath "InvoiceProcessor.spec" -Append -Encoding utf8
+        ")" | Out-File -FilePath "InvoiceProcessor.spec" -Append -Encoding utf8
+        "" | Out-File -FilePath "InvoiceProcessor.spec" -Append -Encoding utf8
+        "pyz = PYZ(a.pure, a.zipped_data, cipher=None)" | Out-File -FilePath "InvoiceProcessor.spec" -Append -Encoding utf8
+        "" | Out-File -FilePath "InvoiceProcessor.spec" -Append -Encoding utf8
+        "exe = EXE(" | Out-File -FilePath "InvoiceProcessor.spec" -Append -Encoding utf8
+        "    pyz," | Out-File -FilePath "InvoiceProcessor.spec" -Append -Encoding utf8
+        "    a.scripts," | Out-File -FilePath "InvoiceProcessor.spec" -Append -Encoding utf8
+        "    a.binaries," | Out-File -FilePath "InvoiceProcessor.spec" -Append -Encoding utf8
+        "    a.zipfiles," | Out-File -FilePath "InvoiceProcessor.spec" -Append -Encoding utf8
+        "    a.datas," | Out-File -FilePath "InvoiceProcessor.spec" -Append -Encoding utf8
+        "    []," | Out-File -FilePath "InvoiceProcessor.spec" -Append -Encoding utf8
+        "    name='InvoiceProcessor'," | Out-File -FilePath "InvoiceProcessor.spec" -Append -Encoding utf8
+        "    debug=False," | Out-File -FilePath "InvoiceProcessor.spec" -Append -Encoding utf8
+        "    bootloader_ignore_signals=False," | Out-File -FilePath "InvoiceProcessor.spec" -Append -Encoding utf8
+        "    strip=False," | Out-File -FilePath "InvoiceProcessor.spec" -Append -Encoding utf8
+        "    upx=True," | Out-File -FilePath "InvoiceProcessor.spec" -Append -Encoding utf8
+        "    upx_exclude=[]," | Out-File -FilePath "InvoiceProcessor.spec" -Append -Encoding utf8
+        "    runtime_tmpdir=None," | Out-File -FilePath "InvoiceProcessor.spec" -Append -Encoding utf8
+        "    console=True," | Out-File -FilePath "InvoiceProcessor.spec" -Append -Encoding utf8
+        "    disable_windowed_traceback=False," | Out-File -FilePath "InvoiceProcessor.spec" -Append -Encoding utf8
+        "    argv_emulation=False," | Out-File -FilePath "InvoiceProcessor.spec" -Append -Encoding utf8
+        "    target_arch='x86_64'," | Out-File -FilePath "InvoiceProcessor.spec" -Append -Encoding utf8
+        "    codesign_identity=None," | Out-File -FilePath "InvoiceProcessor.spec" -Append -Encoding utf8
+        "    entitlements_file=None," | Out-File -FilePath "InvoiceProcessor.spec" -Append -Encoding utf8
+        ")" | Out-File -FilePath "InvoiceProcessor.spec" -Append -Encoding utf8
         
-        # Write spec file
-        $specContent | Out-File -FilePath "InvoiceProcessor.spec" -Encoding utf8
+        Write-Host "Created PyInstaller spec file"
         
         # Build executable
         Write-Host "Building Windows executable with PyInstaller..."
