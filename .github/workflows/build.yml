@@ -231,55 +231,72 @@ jobs:
         echo "C:\Program Files\Tesseract-OCR" >> $GITHUB_PATH
         
     - name: Install Python dependencies
+      shell: cmd
       run: |
         python -m pip install --upgrade pip setuptools wheel
         
-        # Install build tools for Windows
+        REM Install build tools for Windows
         pip install pyinstaller
         
-        # Install dependencies with error handling and Windows-specific versions
-        echo "Installing core dependencies..."
+        REM Install core dependencies
+        echo Installing core dependencies...
         pip install "pydantic>=2.5.0"
+        if %ERRORLEVEL% neq 0 exit /b %ERRORLEVEL%
+        
         pip install "pytesseract>=0.3.10"
+        if %ERRORLEVEL% neq 0 exit /b %ERRORLEVEL%
+        
         pip install "PyPDF2>=3.0.1"
+        if %ERRORLEVEL% neq 0 exit /b %ERRORLEVEL%
+        
         pip install "pillow>=10.1.0"
+        if %ERRORLEVEL% neq 0 exit /b %ERRORLEVEL%
+        
         pip install "openai>=1.6.0"
+        if %ERRORLEVEL% neq 0 exit /b %ERRORLEVEL%
+        
         pip install "anthropic>=0.8.0"
+        if %ERRORLEVEL% neq 0 exit /b %ERRORLEVEL%
+        
         pip install "pandas>=2.1.4"
+        if %ERRORLEVEL% neq 0 exit /b %ERRORLEVEL%
+        
         pip install "python-dotenv>=1.0.0"
+        if %ERRORLEVEL% neq 0 exit /b %ERRORLEVEL%
+        
         pip install "typer>=0.13.0"
+        if %ERRORLEVEL% neq 0 exit /b %ERRORLEVEL%
+        
         pip install "rich>=13.7.0"
+        if %ERRORLEVEL% neq 0 exit /b %ERRORLEVEL%
         
-        # Install OpenCV with fallback
-        echo "Installing OpenCV..."
-        pip install opencv-python-headless || pip install opencv-python || echo "OpenCV installation failed, will try alternative"
+        REM Install OpenCV with error handling
+        echo Installing OpenCV...
+        pip install opencv-python-headless
+        if %ERRORLEVEL% neq 0 (
+            echo OpenCV headless failed, trying regular opencv-python...
+            pip install opencv-python
+            if %ERRORLEVEL% neq 0 echo OpenCV installation failed, continuing without it...
+        )
         
-        # Install PDF2Image with error handling (may fail due to poppler dependency)
-        echo "Installing pdf2image..."
-        pip install "pdf2image>=1.16.3" || echo "pdf2image installation failed, continuing without it"
+        REM Install PDF2Image with error handling
+        echo Installing pdf2image...
+        pip install "pdf2image>=1.16.3"
+        if %ERRORLEVEL% neq 0 echo pdf2image installation failed, continuing without it...
         
-        # Install the package itself without editable mode to avoid potential issues
-        echo "Installing invoice_processor package..."
+        REM Install the package itself
+        echo Installing invoice_processor package...
         pip install .
+        if %ERRORLEVEL% neq 0 exit /b %ERRORLEVEL%
         
-        # Verify core functionality
-        echo "Verifying installation..."
-        python -c "import sys; print(f'Python: {sys.version}')"
-        python -c "import pydantic; print('✅ pydantic')"
-        python -c "import typer; print('✅ typer')"
-        python -c "import rich; print('✅ rich')"
-        python -c "import pandas; print('✅ pandas')"
-        
-        # Test package import with error details
-        python -c "
-        try:
-            import invoice_processor
-            print('✅ invoice_processor package installed successfully')
-        except ImportError as e:
-            print(f'❌ invoice_processor import failed: {e}')
-            import sys
-            sys.exit(1)
-        "
+        REM Verify installation
+        echo Verifying installation...
+        python -c "import sys; print('Python version:', sys.version)"
+        python -c "import pydantic; print('pydantic OK')"
+        python -c "import typer; print('typer OK')"
+        python -c "import rich; print('rich OK')"
+        python -c "import pandas; print('pandas OK')"
+        python -c "import invoice_processor; print('invoice_processor package installed successfully')"
 
     - name: Build Windows executable
       shell: powershell
